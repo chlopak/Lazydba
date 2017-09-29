@@ -563,7 +563,7 @@ INSERT INTO @References VALUES ('Brent Ozar Unlimited','http://FirstResponderKit
 	FROM sys.databases db ';
 	IF 'Yes please dont do the system databases' IS NOT NULL
 	BEGIN
-		SET @dynamicSQL = @dynamicSQL + ' WHERE database_id > 4 AND state NOT IN (1,2,3,6)';
+		SET @dynamicSQL = @dynamicSQL + ' WHERE database_id > 4 AND state NOT IN (1,2,3,6) AND user_access = 0';
 	END
 	SET @dynamicSQL = @dynamicSQL + ' OPTION (RECOMPILE)'
 	INSERT INTO @Databases 

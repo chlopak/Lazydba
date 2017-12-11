@@ -2240,8 +2240,8 @@ GROUP BY
 LEFT OUTER JOIN (
 	SELECT name AS dbname
 	 ,COUNT(status) AS number_of_connections
-	FROM sys.databases sd
-	LEFT JOIN sysprocesses sp ON sd.database_id = sp.dbid
+	FROM master.sys.databases sd
+	LEFT JOIN master.sys.sysprocesses sp ON sd.database_id = sp.dbid
 	WHERE database_id > 4
 	GROUP BY name
 ) con ON con.dbname = base.name

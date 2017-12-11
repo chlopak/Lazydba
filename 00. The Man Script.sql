@@ -41,7 +41,10 @@ INSERT INTO @References VALUES ('Brent Ozar Unlimited','http://FirstResponderKit
 ,('Julian Kuiters','http://www.julian-kuiters.id.au/article.php/set-options-have-incorrect-settings','')
 ,('Basit A Masood-Al-Farooq','https://basitaalishan.com/2014/01/22/get-sql-server-physical-cores-physical-and-virtual-cpus-and-processor-type-information-using-t-sql-script/','')
 ,('Paul Randal','http://www.sqlskills.com/blogs/paul/wait-statistics-or-please-tell-me-where-it-hurts/','')
-
+,('wikiHow','http://www.wikihow.com/Calculate-Confidence-Interval','')
+,('Periscope Data','https://www.periscopedata.com/blog/how-to-calculate-confidence-intervals-in-sql','')
+,('Jon M Crawford','https://www.sqlservercentral.com/Forums/Topic922290-338-1.aspx','')
+,('Robert L Davis','http://www.sqlsoldier.com/wp/sqlserver/breakingdowntempdbcontentionpart2','')
 /* Guidelines:
 	1. Each declare on a new line
 	2. Each column on a new line
@@ -61,6 +64,28 @@ INSERT INTO @References VALUES ('Brent Ozar Unlimited','http://FirstResponderKit
 	--------
 	Do stuff
 */
+	DECLARE @matrixthis BIGINT = 0
+	DECLARE @matrixthisline INT = 0
+	DECLARE @sliverofawesome NVARCHAR(200)
+	DECLARE @thischar NVARCHAR(1)
+
+	WHILE @matrixthis < 100
+	BEGIN
+		SET @matrixthisline = 0
+		SET @sliverofawesome = ''
+
+		WHILE @matrixthisline < 180
+		BEGIN
+			SET @thischar = NCHAR(CONVERT(INT,RAND() *  1252))
+			IF LEN(@thischar) = 0 OR RAND() < 0.8
+				SET @thischar = ' '
+			SET @sliverofawesome = @sliverofawesome + @thischar
+			SET @matrixthisline = @matrixthisline + 1
+		END
+		PRINT (@sliverofawesome) 
+		SET @matrixthis = @matrixthis + 1
+		WAITFOR DELAY '00:00:00.011'
+	END
 
 	DECLARE @c_r AS CHAR(2) 
 	SET @c_r = CHAR(13) + CHAR(10)
@@ -111,6 +136,19 @@ INSERT INTO @References VALUES ('Brent Ozar Unlimited','http://FirstResponderKit
 	DECLARE @ErrorSeverity int;
 	DECLARE @ErrorState int;
 	DECLARE @ErrorMessage NVARCHAR(4000);
+
+	/*Performance section variables*/
+	DECLARE @cnt INT;
+	DECLARE @record_count INT;
+	DECLARE @dbid INT;
+	DECLARE @objectid INT;
+	DECLARE @cmd nvarchar(MAX);
+	DECLARE @grand_total_worker_time FLOAT ; 
+	DECLARE @grand_total_IO FLOAT ; 
+	DECLARE @evaldate DATETIME;
+	DECLARE @TotalIODailyWorkload MONEY;
+	SET @evaldate = GETDATE();
+
 	SET @starttime = GETDATE()
 
 	SELECT @SQLVersion = @@MicrosoftVersion / 0x01000000  OPTION (RECOMPILE)-- Get major version
@@ -969,8 +1007,8 @@ INSERT INTO @References VALUES ('Brent Ozar Unlimited','http://FirstResponderKit
 		, MIN(CASE WHEN  type = 'D' THEN backup_start_date ELSE 0 END) 'First Full'             
 		, MAX(CASE WHEN  type = 'L' THEN backup_finish_date ELSE 0 END) 'Last Transaction Log'  
 		, MIN(CASE WHEN  type = 'L' THEN backup_start_date ELSE 0 END) 'First Transaction Log'  
-		FROM msdb.dbo.backupset bs
-		LEFT OUTER JOIN msdb.sys.databases dbs ON dbs.name = bs.database_name 
+		FROM  msdb.sys.databases dbs
+		LEFT OUTER JOIN  msdb.dbo.backupset bs ON dbs.name = bs.database_name  
 		AND dbs.recovery_model_desc COLLATE DATABASE_DEFAULT = bs.recovery_model COLLATE DATABASE_DEFAULT
 		WHERE type IN ('D', 'L')
 		AND database_name NOT IN ('model','master','msdb')
@@ -1548,7 +1586,7 @@ INSERT INTO @References VALUES ('Brent Ozar Unlimited','http://FirstResponderKit
 			SET @dynamicSQL = '
 			USE ['+@DatabaseName +']
 			SELECT '''+@DatabaseName+'''
-			,  (( user_seeks + user_scans ) * avg_total_user_cost * avg_user_impact)/' + CONVERT(NVARCHAR,@DaysUptime) + ' daily_magic_benefit_number
+			,  (( user_seeks + user_scans ) * avg_total_user_cost * avg_user_impact)/' + CONVERT(NVARCHAR,@DaysOldestCachedQuery) + ' daily_magic_benefit_number
 			, [Table] = [statement]
 			
 			
@@ -1694,7 +1732,7 @@ INSERT INTO @References VALUES ('Brent Ozar Unlimited','http://FirstResponderKit
 			'
 			--EXEC sp_executesql @dynamicSQL;
 
-					/*----------------------------------------
+			/*----------------------------------------
 			--Find badly behaving constraints
 			----------------------------------------*/
 
@@ -2126,6 +2164,710 @@ INSERT INTO @References VALUES ('Brent Ozar Unlimited','http://FirstResponderKit
 
 	RAISERROR (N'Database Connections counted',0,1) WITH NOWAIT;
 
+
+			/*----------------------------------------
+			--Current likely active databases
+			----------------------------------------*/
+	
+
+DECLARE @confidence TABLE (DBName VARCHAR(500), EstHoursSinceActive BIGINT)
+DECLARE @ConfidenceLevel TABLE ( Bionmial MONEY, ConfidenceLevel VARCHAR(10))
+INSERT INTO @ConfidenceLevel VALUES(1.96,'95%')
+
+SET @lastservericerestart = (SELECT create_date FROM sys.databases WHERE name = 'tempdb');
+
+INSERT INTO @confidence
+select d.name, [LastSomethingHours] = DATEDIFF(HOUR,ISNULL(
+(select X1= max(bb.xx) 
+from (
+    select xx = max(last_user_seek) 
+        where max(last_user_seek) is not null 
+    union all 
+    select xx = max(last_user_scan) 
+        where max(last_user_scan) is not null 
+    union all 
+    select xx = max(last_user_lookup) 
+        where max(last_user_lookup) is not null 
+    union all 
+        select xx = max(last_user_update) 
+        where max(last_user_update) is not null) bb) ,@lastservericerestart),GETDATE())
+FROM master.dbo.sysdatabases d 
+left outer join sys.dm_db_index_usage_stats s on d.dbid= s.database_id 
+WHERE database_id > 4
+group by d.name
+
+
+PRINT 'Probability of a read data event occurring in the next hour, based on activity since the last restart with a 95% confidence'
+
+INSERT #output_man_script (SectionID, Section,Summary, Details) SELECT 30, 'Database usage likelyhood','------','------'
+INSERT #output_man_script (SectionID, Section,Summary,Details)
+SELECT  30 [SectionID]
+, base.name [Section]
+,ISNULL(CONVERT(VARCHAR(10),CASE
+	WHEN pages.[TotalPages in MB] > 0 THEN 100
+	WHEN con.number_of_connections > 0 THEN confidence.low 
+	ELSE confidence.high  
+END),'')  + '% likely'    
++  '; Connections: ' + CONVERT(VARCHAR(10),con.number_of_connections )
++ '; HoursActive: '+ CONVERT(VARCHAR(10),DATEDIFF(HOUR,@lastservericerestart,GETDATE())) 
++ '; Pages(MB) in memory' + CONVERT(VARCHAR(10), ISNULL(pages.[TotalPages in MB],0)) 
+ [Summary]
+ 
+,  'DB Created: ' + CONVERT(VARCHAR,base.DBcreatedate,120)
++ 'Last seek: ' + CONVERT(VARCHAR,base.[last_user_seek],120)
++ '; Last scan:' + CONVERT(VARCHAR,base.[last_user_scan],120)
++ '; Last lookup' + CONVERT(VARCHAR,base.[last_user_lookup],120)
++ '; Last update' + CONVERT(VARCHAR,base.[last_user_update],120) [Details]
+
+FROM (
+SELECT db.name, db.database_id
+, MAX(db.create_date) [DBcreatedate]
+, MAX(o.modify_date) [ObjectModifyDate]
+, MAX(ius.last_user_seek)    [last_user_seek]
+, MAX(ius.last_user_scan)   [last_user_scan]
+, MAX(ius.last_user_lookup) [last_user_lookup]
+, MAX(ius.last_user_update) [last_user_update]
+FROM
+	sys.databases db
+	LEFT OUTER JOIN sys.dm_db_index_usage_stats ius  ON db.database_id = ius.database_id
+	LEFT OUTER JOIN  sys.all_objects o ON o.object_id = ius.object_id AND o.type = 'U'
+WHERE 
+	db.database_id > 4 AND state NOT IN (1,2,3,6) AND user_access = 0
+GROUP BY 
+	db.name, db.database_id
+) base
+
+LEFT OUTER JOIN (
+	SELECT name AS dbname
+	 ,COUNT(status) AS number_of_connections
+	FROM sys.databases sd
+	LEFT JOIN sysprocesses sp ON sd.database_id = sp.dbid
+	WHERE database_id > 4
+	GROUP BY name
+) con ON con.dbname = base.name
+LEFT OUTER JOIN (
+SELECT DB_NAME (database_id) AS 'Database Name'
+,  COUNT(*) *8/1024 AS [TotalPages in MB]
+FROM sys.dm_os_buffer_descriptors
+GROUP BY database_id
+) pages ON pages.[Database Name] = base.name
+
+LEFT OUTER JOIN (
+select DBName
+  , intervals.n as [Hours]
+  , intervals.x as [TargetActiveHours]
+  , CONVERT(MONEY,(p - se * 1.96)*100) as low
+  , CONVERT(MONEY,(intervals.p * 100)) as mid
+  , CONVERT(MONEY,(p + se * 1.96)*100) as high 
+from (
+  select 
+    rates.*, 
+    sqrt(p * (1 - p) / n) as se -- calculate se
+  from (
+    select 
+      conversions.*, 
+      (CASE WHEN x = 0 THEN 1 ELSE x END + 1.92) / CONVERT(FLOAT,(n + 3.84)) as p -- calculate p
+    from ( 
+      -- Our conversion rate table from above
+      select DBName
+       , DATEDIFF(HOUR,@lastservericerestart,GETDATE()) as n 
+       , DATEDIFF(HOUR,@lastservericerestart,GETDATE()) - EstHoursSinceActive as x
+	   FROM @confidence
+    ) conversions
+  ) rates
+) intervals
+) confidence ON confidence.DBName = base.name
+LEFT OUTER JOIN sys.databases dbs ON dbs.database_id = base.database_id
+
+ORDER BY base.name
+
+	RAISERROR (N'Database usage likelyhood measured',0,1) WITH NOWAIT;
+
+			/*----------------------------------------
+			--Calculate daily IO workload
+			----------------------------------------*/
+/*
+INSERT #output_man_script (SectionID, Section,Summary, Details) SELECT 31, 'Possible TempDB Slowness','------','------'
+
+With Tasks
+As (Select session_id,
+        wait_type,
+        wait_duration_ms,
+        blocking_session_id,
+        resource_description,
+        PageID = Cast(Right(resource_description, Len(resource_description)
+                - Charindex(':', resource_description, 3)) As Int)
+    From sys.dm_os_waiting_tasks
+    Where wait_type Like 'PAGE%LATCH_%'
+    And resource_description Like '2:%')
+INSERT #output_man_script (SectionID, Section,Summary,Details)
+Select session_id,
+        wait_type,
+        wait_duration_ms,
+        blocking_session_id,
+        resource_description,
+    ResourceType = Case
+        When PageID = 1 Or PageID % 8088 = 0 Then 'Is PFS Page'
+        When PageID = 2 Or PageID % 511232 = 0 Then 'Is GAM Page'
+        When PageID = 3 Or (PageID - 1) % 511232 = 0 Then 'Is SGAM Page'
+        Else 'Is Not PFS, GAM, or SGAM page'
+    End
+From Tasks;
+
+	RAISERROR (N'Slow TempDB checked',0,1) WITH NOWAIT;
+*/
+			/*----------------------------------------
+			--Calculate daily IO workload
+			----------------------------------------*/
+
+	BEGIN TRY
+		IF OBJECT_ID('tempdb.dbo.#LEXEL_OES_stats_sql_handle_convert_table', 'U') IS NOT NULL
+		EXEC ('DROP TABLE #LEXEL_OES_stats_sql_handle_convert_table;')
+		CREATE TABLE #LEXEL_OES_stats_sql_handle_convert_table (
+				 row_id INT identity 
+				, t_sql_handle varbinary(64)
+				, t_display_option varchar(140) collate database_default
+				, t_display_optionIO varchar(140) collate database_default
+				, t_sql_handle_text varchar(140) collate database_default
+				, t_SPRank INT
+				, t_dbid INT
+				, t_objectid INT
+				, t_SQLStatement varchar(max) collate database_default
+				, t_execution_count INT
+				, t_plan_generation_num INT
+				, t_last_execution_time datetime
+				, t_avg_worker_time FLOAT
+				, t_total_worker_time FLOAT
+				, t_last_worker_time FLOAT
+				, t_min_worker_time FLOAT
+				, t_max_worker_time FLOAT
+				, t_avg_logical_reads FLOAT
+				, t_total_logical_reads BIGINT
+				, t_last_logical_reads BIGINT
+				, t_min_logical_reads BIGINT
+				, t_max_logical_reads BIGINT
+				, t_avg_logical_writes FLOAT
+				, t_total_logical_writes BIGINT
+				, t_last_logical_writes BIGINT
+				, t_min_logical_writes BIGINT
+				, t_max_logical_writes BIGINT
+				, t_avg_logical_IO FLOAT
+				, t_total_logical_IO BIGINT
+				, t_last_logical_IO BIGINT
+				, t_min_logical_IO BIGINT
+				, t_max_logical_IO BIGINT 
+				);
+		IF OBJECT_ID('tempdb.dbo.#LEXEL_OES_stats_objects', 'U') IS NOT NULL
+		 EXEC ('DROP TABLE #LEXEL_OES_stats_objects;')
+		CREATE TABLE #LEXEL_OES_stats_objects (
+				 obj_rank INT
+				, total_cpu BIGINT
+				, total_logical_reads BIGINT
+				, total_logical_writes BIGINT
+				, total_logical_io BIGINT
+				, avg_cpu BIGINT
+				, avg_reads BIGINT
+				, avg_writes BIGINT
+				, avg_io BIGINT
+				, cpu_rank INT
+				, total_cpu_rank INT
+				, logical_read_rank INT
+				, logical_write_rank INT
+				, logical_io_rank INT
+				);
+		IF OBJECT_ID('tempdb.dbo.#LEXEL_OES_stats_object_name', 'U') IS NOT NULL
+		 EXEC ('DROP TABLE #LEXEL_OES_stats_object_name;')
+		CREATE TABLE #LEXEL_OES_stats_object_name (
+				 dbId INT
+				, objectId INT
+				, dbName sysname collate database_default null
+				, objectName sysname collate database_default null
+				, objectType nvarchar(5) collate database_default null
+				, schemaName sysname collate database_default null
+				)
+
+		IF OBJECT_ID('tempdb.dbo.#LEXEL_OES_stats_output', 'U') IS NOT NULL
+		 EXEC ('DROP TABLE #LEXEL_OES_stats_output;')
+		CREATE TABLE #LEXEL_OES_stats_output(
+			ID INT IDENTITY(1,1)
+			, evaldate DATETIME DEFAULT GETDATE()
+			, domain VARCHAR(50) DEFAULT DEFAULT_DOMAIN()
+			, SQLInstance VARCHAR(50) DEFAULT @@SERVERNAME
+			, [Type] varchar(25) NOT NULL
+			, l1 INT NULL
+			, l2 BIGINT NULL
+			, row_id INT NOT NULL
+			, t_obj_name VARCHAR(250)  NULL
+			, t_obj_type VARCHAR(250)  NULL
+			, [schema_name] VARCHAR(250)  NULL
+			, t_db_name VARCHAR(250) NULL
+			, t_sql_handle varbinary(64) NULL
+			, t_SPRank INT NULL
+			, t_SPRank2 INT NULL
+			, t_SQLStatement varchar(max) NULL
+			, t_execution_count INT NULL
+			, t_plan_generation_num INT NULL
+			, t_last_execution_time datetime NULL
+			, t_avg_worker_time float NULL
+			, t_total_worker_time BIGINT NULL
+			, t_last_worker_time BIGINT NULL
+			, t_min_worker_time BIGINT NULL
+			, t_max_worker_time BIGINT NULL
+			, t_avg_logical_reads float NULL
+			, t_total_logical_reads BIGINT NULL
+			, t_last_logical_reads BIGINT NULL
+			, t_min_logical_reads BIGINT NULL
+			, t_max_logical_reads BIGINT NULL
+			, t_avg_logical_writes float NULL
+			, t_total_logical_writes BIGINT NULL
+			, t_last_logical_writes BIGINT NULL
+			, t_min_logical_writes BIGINT NULL
+			, t_max_logical_writes BIGINT NULL
+			, t_avg_IO float NULL
+			, t_total_IO BIGINT NULL
+			, t_last_IO BIGINT NULL
+			, t_min_IO BIGINT NULL
+			, t_max_IO BIGINT NULL
+			, t_CPURank INT NULL
+			, t_ReadRank INT NULL
+			, t_WriteRank INT NULL
+		) ON [PRIMARY] TEXTIMAGE_ON [PRIMARY]
+
+
+
+		INSERT INTO #LEXEL_OES_stats_sql_handle_convert_table 
+		SELECT
+		sql_handle
+		, sql_handle AS chart_display_option 
+		, sql_handle AS chart_display_optionIO 
+		, master.dbo.fn_varbintohexstr(sql_handle)
+		, dense_RANK() over (order by s2.dbid,s2.objectid) AS SPRank 
+		, s2.dbid
+		, s2.objectid
+		, (SELECT top 1 substring(text,(s1.statement_start_offset+2)/2, (CASE WHEN s1.statement_end_offset = -1 then len(convert(nvarchar(max),text))*2 else s1.statement_end_offset end - s1.statement_start_offset) /2 ) FROM sys.dm_exec_sql_text(s1.sql_handle)) AS [SQL Statement]
+		, execution_count
+		, plan_generation_num
+		, last_execution_time
+		, ((total_worker_time+0.0)/execution_count)/1000 AS [avg_worker_time]
+		, total_worker_time/1000.0
+		, last_worker_time/1000.0
+		, min_worker_time/1000.0
+		, max_worker_time/1000.0
+		, ((total_logical_reads+0.0)/execution_count) AS [avg_logical_reads]
+		, total_logical_reads
+		, last_logical_reads
+		, min_logical_reads
+		, max_logical_reads
+		, ((total_logical_writes+0.0)/execution_count) AS [avg_logical_writes]
+		, total_logical_writes
+		, last_logical_writes
+		, min_logical_writes
+		, max_logical_writes
+		, ((total_logical_writes+0.0)/execution_count + (total_logical_reads+0.0)/execution_count) AS [avg_logical_IO]
+		, total_logical_writes + total_logical_reads
+		, last_logical_writes +last_logical_reads
+		, min_logical_writes +min_logical_reads
+		, max_logical_writes + max_logical_reads 
+		FROM sys.dm_exec_query_stats s1 
+		CROSS APPLY sys.dm_exec_sql_text(sql_handle) s2 
+		WHERE s2.objectid IS NOT NULL AND db_name(s2.dbid) IS NOT NULL
+		AND (execution_count >= @MinExecutionCount OR (total_worker_time/1000.0) > 10)
+		ORDER BY s1.sql_handle; 
+
+		SELECT @grand_total_worker_time = SUM(t_total_worker_time)
+		, @grand_total_IO = SUM(t_total_logical_reads + t_total_logical_writes) 
+		from #LEXEL_OES_stats_sql_handle_convert_table; 
+		SELECT @grand_total_worker_time = CASE WHEN @grand_total_worker_time > 0 THEN @grand_total_worker_time ELSE 1.0 END ; 
+		SELECT @grand_total_IO = CASE WHEN @grand_total_IO > 0 THEN @grand_total_IO ELSE 1.0 END ; 
+
+		set @cnt = 1; 
+		SELECT @record_count = count(*) FROM #LEXEL_OES_stats_sql_handle_convert_table ; 
+		WHILE (@cnt <= @record_count) 
+		BEGIN 
+		 SELECT @dbid = t_dbid
+		 , @objectid = t_objectid 
+		 FROM #LEXEL_OES_stats_sql_handle_convert_table WHERE row_id = @cnt; 
+		 if not exists (SELECT 1 FROM #LEXEL_OES_stats_object_name WHERE objectId = @objectid AND dbId = @dbid )
+		 BEGIN
+		 SET @cmd = 'SELECT '+convert(nvarchar(10),@dbid)+','+convert(nvarchar(100),@objectid)+','''+db_name(@dbid)+'''
+					 , obj.name,obj.type
+					 , CASE WHEN sch.name IS NULL THEN '''' ELSE sch.name END 
+		 FROM ['+db_name(@dbid)+'].sys.objects obj 
+					 LEFT OUTER JOIN ['+db_name(@dbid)+'].sys.schemas sch on(obj.schema_id = sch.schema_id) 
+		 WHERE obj.object_id = '+convert(nvarchar(100),@objectid)+ ';'
+		 INSERT INTO #LEXEL_OES_stats_object_name
+		 EXEC(@cmd)
+				END
+		 SET @cnt = @cnt + 1 ; 
+		END ; 
+
+		INSERT INTO #LEXEL_OES_stats_objects 
+		SELECT t_SPRank
+		, SUM(t_total_worker_time)
+		, SUM(t_total_logical_reads)
+		, SUM(t_total_logical_writes)
+		, SUM(t_total_logical_IO)
+		, SUM(t_avg_worker_time) AS avg_cpu
+		, SUM(t_avg_logical_reads)
+		, SUM(t_avg_logical_writes)
+		, SUM(t_avg_logical_IO)
+		, RANK()OVER (ORDER BY SUM(t_avg_worker_time) DESC)
+		, RANK()OVER (ORDER BY SUM(t_total_worker_time) DESC)
+		, RANK()OVER (ORDER BY SUM(t_avg_logical_reads) DESC)
+		, RANK()OVER (ORDER BY SUM(t_avg_logical_writes) DESC)
+		, RANK()OVER (ORDER BY SUM(t_total_logical_IO) DESC)
+		FROM #LEXEL_OES_stats_sql_handle_convert_table 
+		GROUP BY t_SPRank ; 
+
+		UPDATE #LEXEL_OES_stats_sql_handle_convert_table SET t_display_option = 'show_total' 
+		WHERE t_SPRank IN (SELECT obj_rank FROM #LEXEL_OES_stats_objects WHERE (total_cpu+0.0)/@grand_total_worker_time < 0.05) ; 
+
+		UPDATE #LEXEL_OES_stats_sql_handle_convert_table SET t_display_option = t_sql_handle_text 
+		WHERE t_SPRank IN (SELECT obj_rank FROM #LEXEL_OES_stats_objects WHERE total_cpu_rank <= 5) ; 
+
+		UPDATE #LEXEL_OES_stats_sql_handle_convert_table SET t_display_option = 'show_total' 
+		WHERE t_SPRank IN (SELECT obj_rank FROM #LEXEL_OES_stats_objects WHERE (total_cpu+0.0)/@grand_total_worker_time < 0.005); 
+
+		UPDATE #LEXEL_OES_stats_sql_handle_convert_table SET t_display_optionIO = 'show_total' 
+		WHERE t_SPRank IN (SELECT obj_rank FROM #LEXEL_OES_stats_objects WHERE (total_logical_io+0.0)/@grand_total_IO < 0.05); 
+
+		UPDATE #LEXEL_OES_stats_sql_handle_convert_table SET t_display_optionIO = t_sql_handle_text 
+		WHERE t_SPRank IN (SELECT obj_rank FROM #LEXEL_OES_stats_objects WHERE logical_io_rank <= 5) ; 
+
+		UPDATE #LEXEL_OES_stats_sql_handle_convert_table SET t_display_optionIO = 'show_total' 
+		WHERE t_SPRank IN (SELECT obj_rank FROM #LEXEL_OES_stats_objects WHERE (total_logical_io+0.0)/@grand_total_IO < 0.005); 
+
+
+	END TRY
+	BEGIN CATCH 
+		SELECT -100 AS l1
+		, ERROR_NUMBER() AS l2
+		, ERROR_SEVERITY() AS row_id
+		, ERROR_STATE() AS t_sql_handle
+		, ERROR_MESSAGE() AS t_display_option
+		, 1 AS t_display_optionIO, 1 AS t_sql_handle_text,1 AS t_SPRank,1 AS t_dbid ,1 AS t_objectid ,1 AS t_SQLStatement,1 AS t_execution_count,1 AS t_plan_generation_num,1 AS t_last_execution_time, 1 AS t_avg_worker_time, 1 AS t_total_worker_time, 1 AS t_last_worker_time, 1 AS t_min_worker_time, 1 AS t_max_worker_time, 1 AS t_avg_logical_reads, 1 AS t_total_logical_reads, 1 AS t_last_logical_reads, 1 AS t_min_logical_reads, 1 AS t_max_logical_reads, 1 AS t_avg_logical_writes, 1 AS t_total_logical_writes, 1 AS t_last_logical_writes, 1 AS t_min_logical_writes, 1 AS t_max_logical_writes, 1 AS t_avg_logical_IO, 1 AS t_total_logical_IO, 1 AS t_last_logical_IO, 1 AS t_min_logical_IO, 1 AS t_max_logical_IO, 1 AS t_CPURank, 1 AS t_logical_ReadRank, 1 AS t_logical_WriteRank, 1 AS t_obj_name, 1 AS t_obj_type, 1 AS schama_name, 1 AS t_db_name 
+	END CATCH
+
+	BEGIN TRY
+	set @dbid = db_id(); 
+	SET @cnt = 0; 
+	SET @record_count = 0; 
+	declare @sql_handle varbinary(64); 
+	declare @sql_handle_string varchar(130); 
+	SET @grand_total_worker_time = 0 ; 
+	SET @grand_total_IO = 0 ; 
+
+	IF OBJECT_ID('tempdb..#sql_handle_convert_table') IS NOT NULL
+				DROP TABLE #sql_handle_convert_table;
+	CREATE TABLE #sql_handle_convert_table (
+	 row_id INT identity 
+	, t_sql_handle varbinary(64)
+	, t_display_option varchar(140) collate database_default
+	, t_display_optionIO varchar(140) collate database_default
+	, t_sql_handle_text varchar(140) collate database_default
+	, t_SPRank INT
+	, t_SPRank2 INT
+	, t_SQLStatement varchar(max) collate database_default
+	, t_execution_count INT 
+	, t_plan_generation_num INT
+	, t_last_execution_time datetime
+	, t_avg_worker_time FLOAT
+	, t_total_worker_time BIGINT
+	, t_last_worker_time BIGINT
+	, t_min_worker_time BIGINT
+	, t_max_worker_time BIGINT 
+	, t_avg_logical_reads FLOAT
+	, t_total_logical_reads BIGINT
+	, t_last_logical_reads BIGINT
+	, t_min_logical_reads BIGINT 
+	, t_max_logical_reads BIGINT
+	, t_avg_logical_writes FLOAT
+	, t_total_logical_writes BIGINT
+	, t_last_logical_writes BIGINT
+	, t_min_logical_writes BIGINT
+	, t_max_logical_writes BIGINT
+	, t_avg_IO FLOAT
+	, t_total_IO BIGINT
+	, t_last_IO BIGINT
+	, t_min_IO BIGINT
+	, t_max_IO BIGINT
+	);
+
+	IF OBJECT_ID('tempdb..#perf_report_objects') IS NOT NULL
+				DROP TABLE #perf_report_objects;
+	CREATE TABLE #perf_report_objects (
+	 obj_rank INT
+	, total_cpu BIGINT 
+	, total_reads BIGINT
+	, total_writes BIGINT
+	, total_io BIGINT
+	, avg_cpu BIGINT 
+	, avg_reads BIGINT
+	, avg_writes BIGINT
+	, avg_io BIGINT
+	, cpu_rank INT
+	, total_cpu_rank INT
+	, read_rank INT
+	, write_rank INT
+	, io_rank INT
+	); 
+
+	INSERT INTO #sql_handle_convert_table
+	SELECT sql_handle
+	, sql_handle AS chart_display_option 
+	, sql_handle AS chart_display_optionIO 
+	, master.dbo.fn_varbintohexstr(sql_handle)
+	, dense_RANK() over (order by s1.sql_handle) AS SPRank 
+	, dense_RANK() over (partition by s1.sql_handle order by s1.statement_start_offset) AS SPRank2
+	, replace(replace(replace(replace(CONVERT(NVARCHAR(MAX),(SELECT top 1 substring(text,(s1.statement_start_offset+2)/2, (CASE WHEN s1.statement_end_offset = -1 then len(convert(nvarchar(max),text))*2 else s1.statement_end_offset end - s1.statement_start_offset) /2 ) FROM sys.dm_exec_sql_text(s1.sql_handle))), CHAR(9), ' '),CHAR(10),' '), CHAR(13), ' '), ' ',' ') AS [SQL Statement]
+	, execution_count
+	, plan_generation_num
+	, last_execution_time
+	, ((total_worker_time+0.0)/execution_count)/1000 AS [avg_worker_time]
+	, total_worker_time/1000
+	, last_worker_time/1000
+	, min_worker_time/1000
+	, max_worker_time/1000
+	, ((total_logical_reads+0.0)/execution_count) AS [avg_logical_reads]
+	, total_logical_reads
+	, last_logical_reads
+	, min_logical_reads
+	, max_logical_reads
+	, ((total_logical_writes+0.0)/execution_count) AS [avg_logical_writes]
+	, total_logical_writes
+	, last_logical_writes
+	, min_logical_writes
+	, max_logical_writes
+	, ((total_logical_writes+0.0)/execution_count + (total_logical_reads+0.0)/execution_count) AS [avg_IO]
+	, total_logical_writes + total_logical_reads
+	, last_logical_writes +last_logical_reads
+	, min_logical_writes +min_logical_reads
+	, max_logical_writes + max_logical_reads 
+	from sys.dm_exec_query_stats s1 
+	cross apply sys.dm_exec_sql_text(sql_handle) AS s2 
+	WHERE s2.objectid is null
+	AND (execution_count >= @MinExecutionCount OR (total_worker_time/1000.0) > 10)
+	order by s1.sql_handle; 
+
+	SELECT @grand_total_worker_time = SUM(t_total_worker_time) 
+	, @grand_total_IO = SUM(t_total_logical_reads + t_total_logical_writes) 
+	from #sql_handle_convert_table; 
+
+	SELECT @grand_total_worker_time = CASE WHEN @grand_total_worker_time > 0 then @grand_total_worker_time else 1.0 end ; 
+	SELECT @grand_total_IO = CASE WHEN @grand_total_IO > 0 then @grand_total_IO else 1.0 end ; 
+
+	Insert INTo #perf_report_objects 
+	SELECT t_SPRank
+	, SUM(t_total_worker_time)
+	, SUM(t_total_logical_reads)
+	, SUM(t_total_logical_writes)
+	, SUM(t_total_IO)
+	, SUM(t_avg_worker_time) AS avg_cpu
+	, SUM(t_avg_logical_reads)
+	, SUM(t_avg_logical_writes)
+	, SUM(t_avg_IO)
+	, RANK() OVER(ORDER BY SUM(t_avg_worker_time) DESC)
+	, ROW_NUMBER() OVER(ORDER BY SUM(t_total_worker_time) DESC)
+	, ROW_NUMBER() OVER(ORDER BY SUM(t_avg_logical_reads) DESC)
+	, ROW_NUMBER() OVER(ORDER BY SUM(t_avg_logical_writes) DESC)
+	, ROW_NUMBER() OVER(ORDER BY SUM(t_total_IO) DESC)
+	from #sql_handle_convert_table
+	group by t_SPRank ; 
+
+	UPDATE #sql_handle_convert_table SET t_display_option = 'show_total'
+	WHERE t_SPRank IN (SELECT obj_rank FROM #perf_report_objects WHERE (total_cpu+0.0)/@grand_total_worker_time < 0.05) ; 
+
+	UPDATE #sql_handle_convert_table SET t_display_option = t_sql_handle_text 
+	WHERE t_SPRank IN (SELECT obj_rank FROM #perf_report_objects WHERE total_cpu_rank <= 5) ; 
+
+	UPDATE #sql_handle_convert_table SET t_display_option = 'show_total' 
+	WHERE t_SPRank IN (SELECT obj_rank FROM #perf_report_objects WHERE (total_cpu+0.0)/@grand_total_worker_time < 0.005); 
+
+	UPDATE #sql_handle_convert_table SET t_display_optionIO = 'show_total' 
+	WHERE t_SPRank IN (SELECT obj_rank FROM #perf_report_objects WHERE (total_io+0.0)/@grand_total_IO < 0.05); 
+
+	UPDATE #sql_handle_convert_table SET t_display_optionIO = t_sql_handle_text 
+	WHERE t_SPRank IN (SELECT obj_rank FROM #perf_report_objects WHERE io_rank <= 5) ; 
+
+	UPDATE #sql_handle_convert_table SET t_display_optionIO = 'show_total' 
+	WHERE t_SPRank IN (SELECT obj_rank FROM #perf_report_objects WHERE (total_io+0.0)/@grand_total_IO < 0.005); 
+
+
+	END TRY
+	begin catch
+	SELECT -100 AS l1
+	, ERROR_NUMBER() AS l2
+	, ERROR_SEVERITY() AS row_id
+	, ERROR_STATE() AS t_sql_handle
+	, ERROR_MESSAGE() AS t_display_option
+	, 1 AS t_display_optionIO, 1 AS t_sql_handle_text, 1 AS t_SPRank, 1 AS t_SPRank2, 1 AS t_SQLStatement, 1 AS t_execution_count , 1 AS t_plan_generation_num, 1 AS t_last_execution_time, 1 AS t_avg_worker_time, 1 AS t_total_worker_time, 1 AS t_last_worker_time, 1 AS t_min_worker_time, 1 AS t_max_worker_time, 1 AS t_avg_logical_reads 
+	, 1 AS t_total_logical_reads, 1 AS t_last_logical_reads, 1 AS t_min_logical_reads, 1 AS t_max_logical_reads, 1 AS t_avg_logical_writes, 1 AS t_total_logical_writes, 1 AS t_last_logical_writes, 1 AS t_min_logical_writes, 1 AS t_max_logical_writes, 1 AS t_avg_IO, 1 AS t_total_IO, 1 AS t_last_IO, 1 AS t_min_IO, 1 AS t_max_IO, 1 AS t_CPURank, 1 AS t_ReadRank, 1 AS t_WriteRank
+	end catch
+
+
+
+	INSERT INTO #LEXEL_OES_stats_output
+	(evaldate, [Type], l1, l2, row_id, t_obj_name, t_obj_type, [schema_name], t_db_name, t_sql_handle, t_SPRank, t_SPRank2, t_SQLStatement
+	, t_execution_count, t_plan_generation_num, t_last_execution_time, t_avg_worker_time, t_total_worker_time, t_last_worker_time, t_min_worker_time, t_max_worker_time, t_avg_logical_reads
+	, t_total_logical_reads, t_last_logical_reads, t_min_logical_reads, t_max_logical_reads, t_avg_logical_writes, t_total_logical_writes, t_last_logical_writes, t_min_logical_writes
+	, t_max_logical_writes, t_avg_IO, t_total_IO, t_last_IO, t_min_IO, t_max_IO, t_CPURank, t_ReadRank, t_WriteRank)
+	SELECT @evaldate
+	, 'OBJECT' [Type]
+	, (s.t_SPRank)%2 AS l1
+	, (DENSE_RANK() OVER(ORDER BY s.t_SPRank,s.row_id))%2 AS l2
+	, row_id
+	, objname.objectName AS t_obj_name
+	, objname.objectType AS [t_obj_type]
+	, objname.schemaName AS schema_name
+	, objname.dbName AS t_db_name
+	, s.t_sql_handle
+	--, s.t_display_option
+	--, s.t_display_optionIO
+	--,s.t_sql_handle_text
+	, s.t_SPRank 
+	, NULL t_SPRank2 
+	, replace(replace(replace(replace(CONVERT(NVARCHAR(MAX),s.t_SQLStatement), CHAR(9), ' '),CHAR(10),' '), CHAR(13), ' '), ' ',' ') t_SQLStatement 
+	, s.t_execution_count 
+	, s.t_plan_generation_num 
+	, s.t_last_execution_time 
+	, s.t_avg_worker_time 
+	, s.t_total_worker_time 
+	, s.t_last_worker_time 
+	, s.t_min_worker_time 
+	, s.t_max_worker_time 
+	, s.t_avg_logical_reads 
+	, s.t_total_logical_reads
+	, s.t_last_logical_reads 
+	, s.t_min_logical_reads 
+	, s.t_max_logical_reads 
+	, s.t_avg_logical_writes 
+	, s.t_total_logical_writes 
+	, s.t_last_logical_writes 
+	, s.t_min_logical_writes 
+	, s.t_max_logical_writes 
+	, t_avg_logical_IO t_avg_IO 
+	, t_total_logical_IO t_total_IO 
+	, t_last_logical_IO t_last_IO 
+	, t_min_logical_IO t_min_IO 
+	, t_max_logical_IO t_max_IO
+	, ob.cpu_rank AS t_CPURank 
+	, ob.logical_read_rank t_ReadRank 
+	, ob.logical_write_rank t_WriteRank 
+
+	FROM #LEXEL_OES_stats_sql_handle_convert_table s 
+	JOIN #LEXEL_OES_stats_objects ob on (s.t_SPRank = ob.obj_rank)
+	JOIN #LEXEL_OES_stats_object_name AS objname on (objname.dbId = s.t_dbid and objname.objectId = s.t_objectid )
+
+
+	INSERT INTO #LEXEL_OES_stats_output
+	(evaldate, [Type], l1, l2, row_id, t_obj_name, t_obj_type, [schema_name], t_db_name, t_sql_handle, t_SPRank, t_SPRank2, t_SQLStatement
+	, t_execution_count, t_plan_generation_num, t_last_execution_time, t_avg_worker_time, t_total_worker_time, t_last_worker_time, t_min_worker_time, t_max_worker_time, t_avg_logical_reads
+	, t_total_logical_reads, t_last_logical_reads, t_min_logical_reads, t_max_logical_reads, t_avg_logical_writes, t_total_logical_writes, t_last_logical_writes, t_min_logical_writes
+	, t_max_logical_writes, t_avg_IO, t_total_IO, t_last_IO, t_min_IO, t_max_IO, t_CPURank, t_ReadRank, t_WriteRank)
+	SELECT 
+	  @evaldate
+	, 'BATCH' [Type]
+	, (s.t_SPRank)%2 AS l1
+	, (dense_RANK() OVER(ORDER BY s.t_SPRank,s.row_id))%2 AS l2
+	, row_id
+	, NULL t_obj_name
+	, NULL [t_obj_type]
+	, NULL schema_name
+	, NULL t_db_name
+	, s.t_sql_handle
+	--, s. t_display_option
+	--, s.t_display_optionIO 
+	--, s.t_sql_handle_text 
+	, s.t_SPRank 
+	, s.t_SPRank2 
+	, replace(replace(replace(replace(replace(CONVERT(NVARCHAR(MAX),t_SQLStatement), CHAR(9), ' '),CHAR(10),' '), CHAR(13), ' '), ' ',' '),'  ', ' ') t_SQLStatement 
+	, s.t_execution_count 
+	, s.t_plan_generation_num 
+	, s.t_last_execution_time 
+	, s.t_avg_worker_time 
+	, s.t_total_worker_time 
+	, s.t_last_worker_time 
+	, s.t_min_worker_time 
+	, s.t_max_worker_time 
+	, s.t_avg_logical_reads 
+	, s.t_total_logical_reads
+	, s.t_last_logical_reads 
+	, s.t_min_logical_reads 
+	, s.t_max_logical_reads 
+	, s.t_avg_logical_writes 
+	, s.t_total_logical_writes 
+	, s.t_last_logical_writes 
+	, s.t_min_logical_writes 
+	, s.t_max_logical_writes 
+	, s.t_avg_IO 
+	, s.t_total_IO 
+	, s.t_last_IO 
+	, s.t_min_IO 
+	, s.t_max_IO
+	, ob.cpu_rank AS t_CPURank 
+	, ob.read_rank AS t_ReadRank 
+	, ob.write_rank AS t_WriteRank 
+	FROM  #sql_handle_convert_table s join #perf_report_objects ob on (s.t_SPRank = ob.obj_rank)
+
+
+	SELECT @TotalIODailyWorkload = SUM(CONVERT(MONEY,CONVERT(FLOAT,t_total_IO) * 8 /*KB*/ /1024/*MB*//1024)/@DaysOldestCachedQuery)  
+	FROM #LEXEL_OES_stats_output
+
+	INSERT #output_man_script (SectionID, Section,Summary, Details) SELECT 99, 'Workload details I/O','------','------'
+	INSERT #output_man_script (SectionID, Section,Summary,Details)
+	SELECT  99 [SectionID]
+	, 'Oldest Cache: ' + CONVERT(VARCHAR(15), @DaysOldestCachedQuery) + '; Days Uptime: ' + CONVERT(VARCHAR(15),@DaysUptime) [Section]
+	, CONVERT(VARCHAR(15),SUM(CONVERT(MONEY,CONVERT(FLOAT,t_total_IO) * 8 /*KB*/ /1024/*MB*//1024)/@DaysOldestCachedQuery)  )
+	+ 'GB/day; ' + CONVERT(VARCHAR(15),SUM(CASE WHEN t_execution_count = 1 THEN 1 ELSE CONVERT(MONEY,t_execution_count)/@DaysOldestCachedQuery END) ) 
+	+ ' executions/day; ' +  CONVERT(VARCHAR(15),SUM(CONVERT(MONEY,t_avg_worker_time)/1000 ))
+	+ ' s(avg) *[DailyGB; DailyExecutions; AverageTime(s)]' Summary
+	, 'Total' [Details]
+	FROM #LEXEL_OES_stats_output
+	GROUP BY domain, SQLInstance
+
+	INSERT #output_man_script (SectionID, Section,Summary,Details)
+	SELECT
+	 99 [SectionID]
+	, REPLICATE('|', CONVERT(INT,(CONVERT(MONEY,t_total_IO * 8 /*KB*/ /1024/*MB*//1024)/@DaysOldestCachedQuery )/@TotalIODailyWorkload *100)) + ' ' + CONVERT(VARCHAR(10),(CONVERT(MONEY,CONVERT(FLOAT,t_total_IO) * 8 /*KB*/ /1024/*MB*//1024)/@DaysOldestCachedQuery )/@TotalIODailyWorkload *100) + '%' [Section]
+	, CONVERT(VARCHAR(15),(CONVERT(MONEY,CONVERT(FLOAT,t_total_IO) * 8 /*KB*/ /1024/*MB*//1024)/@DaysOldestCachedQuery) )
+	+ 'GB/day; ' + CONVERT(VARCHAR(15),(CASE WHEN t_execution_count = 1 THEN 1 ELSE CONVERT(MONEY,t_execution_count)/@DaysOldestCachedQuery END) ) 
+	+ ' executions/day; ' +  CONVERT(VARCHAR(15),(CONVERT(MONEY,t_avg_worker_time_S)))
+	+ ' s(avg) *[DailyGB; DailyExecutions; AverageTime(s)]' [Summary]
+	, '/*' + [Type] + '; '+ t_obj_name + ' [' + t_db_name + '].[' + schema_name + '] > */' + t_SQLStatement [Details] 
+	FROM (
+
+	SELECT TOP 10 ID
+		, @evaldate [evaldate]
+		, domain
+		, SQLInstance
+		, [Type]
+		, row_id
+		, t_obj_name
+		, t_obj_type
+		, [schema_name]
+		, t_db_name
+		, replace(replace(replace(replace(replace(CONVERT(NVARCHAR(MAX),t_SQLStatement), CHAR(9), ' '),CHAR(10),' '), CHAR(13), ' '), ' ',' '),'  ', ' ') t_SQLStatement
+		, t_execution_count
+		, CASE WHEN t_execution_count = 1 THEN 1 ELSE CONVERT(MONEY,t_execution_count)/@DaysOldestCachedQuery END AS [t_execution_count_Daily]
+		, t_plan_generation_num
+		, CONVERT(MONEY,CONVERT(FLOAT,t_avg_worker_time)/1000) t_avg_worker_time_S
+		, CONVERT(MONEY,CONVERT(FLOAT,t_total_worker_time)/1000)  t_total_worker_time_S
+		, CONVERT(MONEY,t_avg_logical_reads) t_avg_logical_reads
+		, t_total_logical_reads
+		, CONVERT(MONEY,t_avg_logical_writes) t_avg_logical_writes
+		, t_total_logical_writes
+		,  CONVERT(MONEY,t_avg_IO) t_avg_IO
+		, t_total_IO
+		, CONVERT(MONEY,CONVERT(FLOAT,t_avg_IO) * 8 /*KB*/ /1024/*MB*//1024) [Average Workload GB]
+		, CONVERT(MONEY,CONVERT(FLOAT,t_total_IO) * 8 /*KB*/ /1024/*MB*//1024) [Total Workload GB]
+		, CONVERT(MONEY,CONVERT(FLOAT,t_total_IO) * 8 /*KB*/ /1024/*MB*//1024)/@DaysOldestCachedQuery [Daily Workload GB]
+	FROM #LEXEL_OES_stats_output
+	ORDER BY t_total_IO DESC
+	) T1
+	OPTION (RECOMPILE);
+
+	RAISERROR (N'Daily workload calculated',0,1) WITH NOWAIT;
+
 			/*----------------------------------------
 			--select output
 			----------------------------------------*/
@@ -2157,13 +2899,27 @@ INSERT INTO @References VALUES ('Brent Ozar Unlimited','http://FirstResponderKit
 	IF OBJECT_ID('tempdb..#dbccloginfo') IS NOT NULL
 		DROP TABLE #dbccloginfo
 	IF OBJECT_ID('tempdb..#notrust') IS NOT NULL
-				DROP TABLE #notrust
+		DROP TABLE #notrust
 	IF OBJECT_ID('tempdb..#MissingIndex') IS NOT NULL
-				DROP TABLE #MissingIndex;
+		DROP TABLE #MissingIndex;
 	IF OBJECT_ID('tempdb..#HeapTable') IS NOT NULL
-				DROP TABLE #HeapTable;
+		DROP TABLE #HeapTable;
 	IF OBJECT_ID('tempdb..#whatsets') IS NOT NULL
-				DROP TABLE #whatsets
+		DROP TABLE #whatsets
+	
+	IF OBJECT_ID('tempdb.dbo.#LEXEL_OES_stats_sql_handle_convert_table', 'U') IS NOT NULL
+		DROP TABLE #LEXEL_OES_stats_sql_handle_convert_table;
+	IF OBJECT_ID('tempdb.dbo.#LEXEL_OES_stats_objects', 'U') IS NOT NULL
+		DROP TABLE #LEXEL_OES_stats_objects;
+	IF OBJECT_ID('tempdb.dbo.#LEXEL_OES_stats_object_name', 'U') IS NOT NULL
+		DROP TABLE #LEXEL_OES_stats_object_name;
+	IF OBJECT_ID('tempdb..#sql_handle_convert_table') IS NOT NULL
+		DROP TABLE #sql_handle_convert_table;
+	IF OBJECT_ID('tempdb..#perf_report_objects') IS NOT NULL
+		DROP TABLE #perf_report_objects;
+	IF OBJECT_ID('tempdb.dbo.#LEXEL_OES_stats_output', 'U') IS NOT NULL
+		DROP TABLE #LEXEL_OES_stats_output;
+
 	/*
 	SELECT TOP 10
 	qs.plan_generation_num,
@@ -2211,5 +2967,3 @@ INSERT INTO @References VALUES ('Brent Ozar Unlimited','http://FirstResponderKit
 
 --GO
 --Sample execution call with the most common parameters:
-
-

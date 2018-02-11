@@ -5,11 +5,16 @@ SET ANSI_WARNINGS ON
 SET QUOTED_IDENTIFIER ON
 SET TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
 
-DECLARE @TopQueries TINYINT = 50  /*How many queries need to be looked at, TOP xx*/
-DECLARE @FTECost MONEY = 60000/*Average price in $$$ that you pay someone at your company*/
-DECLARE @MinExecutionCount TINYINT = 1 /*This can go to 0 for more details, but first attend to often used queries. Run this with 0 before making any big decisions*/
-DECLARE @ShowQueryPlan TINYINT = 1 /*Set to 1 to include the Query plan in the output*/
-DECLARE @PrepForExport TINYINT = 1 /*When the intent of this script is to use this for some type of hocus-pocus magic metrics, set this to 1*/
+DECLARE @TopQueries TINYINT 
+SET @TopQueries = 50  /*How many queries need to be looked at, TOP xx*/
+DECLARE @FTECost MONEY 
+SET @FTECost= 60000/*Average price in $$$ that you pay someone at your company*/
+DECLARE @MinExecutionCount TINYINT 
+SET @MinExecutionCount = 1 /*This can go to 0 for more details, but first attend to often used queries. Run this with 0 before making any big decisions*/
+DECLARE @ShowQueryPlan TINYINT 
+SET @ShowQueryPlan = 1 /*Set to 1 to include the Query plan in the output*/
+DECLARE @PrepForExport TINYINT 
+SET @PrepForExport = 1 /*When the intent of this script is to use this for some type of hocus-pocus magic metrics, set this to 1*/
 
 DECLARE @License NVARCHAR(4000)
 SET @License = '----------------
@@ -31,20 +36,20 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OU
 
 DECLARE @References TABLE(Authors VARCHAR(250), [Source] VARCHAR(250) , Detail VARCHAR(500))
 INSERT INTO @References VALUES ('Brent Ozar Unlimited','http://FirstResponderKit.org', 'Default Server Configuration values')
-,('Talha, Johann','http://stackoverflow.com/questions/10577676/how-to-obtain-failed-jobs-from-sql-server-agent-through-script','')
-,('Gregory Larsen','http://www.databasejournal.com/features/mssql/daily-dba-monitoring-tasks.html', '')
-,('Leonid Sheinkman','http://www.databasejournal.com/scripts/all-database-space-used-and-free.html', '')
-,('Unn Known','http://www.sqlserverspecialists.com/2012/10/script-to-monitor-sql-server-cpu-usage.html','')
-,('Uday Arumilli','http://udayarumilli.com/monitor-cpu-utilization-io-usage-and-memory-usage-in-sql-server/','')
-,('Peter Scharlock','https://blogs.msdn.microsoft.com/mssqlisv/2009/06/29/interesting-issue-with-filtered-indexes/','')
-,('Stijn, Sanath Kumar','http://stackoverflow.com/questions/9235527/incorrect-set-options-error-when-building-database-project','')
-,('Julian Kuiters','http://www.julian-kuiters.id.au/article.php/set-options-have-incorrect-settings','')
-,('Basit A Masood-Al-Farooq','https://basitaalishan.com/2014/01/22/get-sql-server-physical-cores-physical-and-virtual-cpus-and-processor-type-information-using-t-sql-script/','')
-,('Paul Randal','http://www.sqlskills.com/blogs/paul/wait-statistics-or-please-tell-me-where-it-hurts/','')
-,('wikiHow','http://www.wikihow.com/Calculate-Confidence-Interval','')
-,('Periscope Data','https://www.periscopedata.com/blog/how-to-calculate-confidence-intervals-in-sql','')
-,('Jon M Crawford','https://www.sqlservercentral.com/Forums/Topic922290-338-1.aspx','')
-,('Robert L Davis','http://www.sqlsoldier.com/wp/sqlserver/breakingdowntempdbcontentionpart2','')
+INSERT INTO @References VALUES ('Talha, Johann','http://stackoverflow.com/questions/10577676/how-to-obtain-failed-jobs-from-sql-server-agent-through-script','')
+INSERT INTO @References VALUES ('Gregory Larsen','http://www.databasejournal.com/features/mssql/daily-dba-monitoring-tasks.html', '')
+INSERT INTO @References VALUES ('Leonid Sheinkman','http://www.databasejournal.com/scripts/all-database-space-used-and-free.html', '')
+INSERT INTO @References VALUES ('Unn Known','http://www.sqlserverspecialists.com/2012/10/script-to-monitor-sql-server-cpu-usage.html','')
+INSERT INTO @References VALUES ('Uday Arumilli','http://udayarumilli.com/monitor-cpu-utilization-io-usage-and-memory-usage-in-sql-server/','')
+INSERT INTO @References VALUES ('Peter Scharlock','https://blogs.msdn.microsoft.com/mssqlisv/2009/06/29/interesting-issue-with-filtered-indexes/','')
+INSERT INTO @References VALUES ('Stijn, Sanath Kumar','http://stackoverflow.com/questions/9235527/incorrect-set-options-error-when-building-database-project','')
+INSERT INTO @References VALUES ('Julian Kuiters','http://www.julian-kuiters.id.au/article.php/set-options-have-incorrect-settings','')
+INSERT INTO @References VALUES ('Basit A Masood-Al-Farooq','https://basitaalishan.com/2014/01/22/get-sql-server-physical-cores-physical-and-virtual-cpus-and-processor-type-information-using-t-sql-script/','')
+INSERT INTO @References VALUES ('Paul Randal','http://www.sqlskills.com/blogs/paul/wait-statistics-or-please-tell-me-where-it-hurts/','')
+INSERT INTO @References VALUES ('wikiHow','http://www.wikihow.com/Calculate-Confidence-Interval','')
+INSERT INTO @References VALUES ('Periscope Data','https://www.periscopedata.com/blog/how-to-calculate-confidence-intervals-in-sql','')
+INSERT INTO @References VALUES ('Jon M Crawford','https://www.sqlservercentral.com/Forums/Topic922290-338-1.aspx','')
+INSERT INTO @References VALUES ('Robert L Davis','http://www.sqlsoldier.com/wp/sqlserver/breakingdowntempdbcontentionpart2','')
 /* Guidelines:
 	1. Each declare on a new line
 	2. Each column on a new line
@@ -64,8 +69,10 @@ INSERT INTO @References VALUES ('Brent Ozar Unlimited','http://FirstResponderKit
 	--------
 	Do stuff
 */
-	DECLARE @matrixthis BIGINT = 0
-	DECLARE @matrixthisline INT = 0
+	DECLARE @matrixthis BIGINT 
+	SET @matrixthis = 0
+	DECLARE @matrixthisline INT 
+	SET @matrixthisline= 0
 	DECLARE @sliverofawesome NVARCHAR(200)
 	DECLARE @thischar NVARCHAR(1)
 
@@ -399,9 +406,27 @@ INSERT INTO @References VALUES ('Brent Ozar Unlimited','http://FirstResponderKit
 			FROM [sys].[dm_os_sys_info] 
 			WHERE 0 = CASE WHEN [hyperthread_ratio] <> cpu_count THEN 0 ELSE 1 END
 		
+			/*----------------------------------------
+			--Check for high worker thread usage
+			----------------------------------------*/
+	IF (
+	SELECT (SELECT CONVERT(MONEY,SUM(current_workers_count)) as [Current worker thread] FROM sys.dm_os_schedulers)*100/max_workers_count FROM sys.dm_os_sys_info) 
+	> 65	
+	BEGIN
+	INSERT #output_man_script (SectionID, Section,Summary) SELECT 0, 'HIGH Worker Thread Usage','------'
+	INSERT #output_man_script (SectionID, Section,Summary)
+	
+	SELECT 0, 'Worker threads',
+		CONVERT(VARCHAR(20),(
+		SELECT CONVERT(MONEY,SUM(current_workers_count)) as [Current worker thread] FROM sys.dm_os_schedulers)*100/max_workers_count) 
+		+ '% workes used. With average work queue count'
+		+ CONVERT(VARCHAR(15),(SELECT AVG (CONVERT(MONEY,work_queue_count))
+	FROM  sys.dm_os_schedulers WHERE STATUS = 'VISIBLE ONLINE' ))
+	FROM sys.dm_os_sys_info
+	END
+	
 
-
-				/*----------------------------------------
+			/*----------------------------------------
 			--Check for any pages marked suspect for corruption
 			----------------------------------------*/
 	IF EXISTS(select 1 from msdb.dbo.suspect_pages)
@@ -442,7 +467,7 @@ INSERT INTO @References VALUES ('Brent Ozar Unlimited','http://FirstResponderKit
 		INSERT #output_man_script (SectionID, Section,Summary, Details) SELECT 1,'!!! WARNING - CHECK SET !!!','------','------'
 		INSERT #output_man_script (SectionID, Section,Summary, Details)
 		SELECT DISTINCT 1
-		, CASE 
+		, ISNULL(CASE 
 		WHEN T.client_version < 3 THEN '!!! WARNING !!! Pre SQL 7'
 		WHEN T.client_version = 3 THEN '!!! WARNING !!! SQL 7'
 		WHEN T.client_version = 4 THEN '!!! WARNING !!! SQL 2000'
@@ -450,15 +475,15 @@ INSERT INTO @References VALUES ('Brent Ozar Unlimited','http://FirstResponderKit
 		WHEN T.client_version = 6 THEN 'SQL 2008'
 		WHEN T.client_version = 7 THEN 'SQL 2012'
 		ELSE 'SQL 2014+'
-		END [Section]
-		, CASE 
+		END,'') [Section]
+		, ISNULL(CASE 
 		WHEN T.client_version < 6 THEN 'SQL Stick and clay tablets'
 		WHEN T.client_version = 6 THEN 'SQL 2008'
 		WHEN T.client_version = 7 THEN 'SQL 2012'
 		ELSE 'SQL 2014+'
-		END
-		+ 'App: [' + T.program_name
-		+ ']; Driver: [' +
+		END ,'')
+		+ '; App: [' + ISNULL(T.program_name,'')
+		+ ']; Driver: [' + ISNULL(
 		CASE SUBSTRING(CAST(C.protocol_version AS BINARY(4)), 1,1)
 		WHEN 0x04 THEN 'Pre-version SQL Server 7.0 - DBLibrary/ ISQL'
 		WHEN 0x70 THEN 'SQL Server 7.0'
@@ -467,16 +492,16 @@ INSERT INTO @References VALUES ('Brent Ozar Unlimited','http://FirstResponderKit
 		WHEN 0x73 THEN 'SQL Server 2008'
 		WHEN 0x74 THEN 'SQL Server 2012/14/16'
 		ELSE 'Unknown driver'
-		END 
-		+ ']; Interface: '+ T.client_interface_name
-		+ '; User: ' + T.nt_user_name
-		+ '; Host: ' + T.host_name [Summary]
-		, '' + CASE WHEN quoted_identifier = 0 THEN ';quoted_identifier = OFF' ELSE '' END
+		END ,'')
+		+ ']; Interface: '+ ISNULL(T.client_interface_name,'')
+		+ '; User: ' + ISNULL(T.nt_user_name,'')
+		+ '; Host: ' + ISNULL(T.host_name,'') [Summary]
+		, '' + ISNULL(CASE WHEN quoted_identifier = 0 THEN ';quoted_identifier = OFF' ELSE '' END
 		+ ''+  CASE WHEN ansi_nulls = 0 THEN ';ansi_nulls = OFF' ELSE '' END
 		+ ''+  CASE WHEN ansi_padding = 0 THEN ';ansi_padding = OFF' ELSE '' END
 		+ ''+  CASE WHEN ansi_warnings = 0 THEN ';ansi_warnings = OFF' ELSE '' END
 		+ ''+  CASE WHEN arithabort = 0 THEN ';arithabort = OFF' ELSE '' END
-		+ ''+  CASE WHEN concat_null_yields_null = 0 THEN ';concat_null_yields_null = OFF' ELSE '' END
+		+ ''+  CASE WHEN concat_null_yields_null = 0 THEN ';concat_null_yields_null = OFF' ELSE '' END,'')
 		FROM sys.dm_exec_sessions T
 		INNER JOIN sys.dm_exec_connections C ON C.session_id = T.session_id
 		WHERE ((
@@ -492,11 +517,58 @@ INSERT INTO @References VALUES ('Brent Ozar Unlimited','http://FirstResponderKit
 		OR T.client_version < 6 
 		ORDER BY Section, [Summary];
 		PRINT N'WARNING! You have SET options that might break stuff on SQL 2005+. DANGER WILL ROBINSON';
+		
+		INSERT #output_man_script (SectionID, Section,Summary, Details) SELECT 1,'!!! WARNING - MAY BREAK UPGRADE !!!','------','------'
+		INSERT #output_man_script (SectionID, Section,Summary, Details)
+		SELECT DISTINCT 1
+		, ISNULL(CASE 
+		WHEN T.client_version < 3 THEN '!!! UPGRADE ISSUE !!! Pre SQL 7'
+		WHEN T.client_version = 3 THEN '!!! UPGRADE ISSUE !!! SQL 7'
+		WHEN T.client_version = 4 THEN '!!! UPGRADE ISSUE !!! SQL 2000'
+		WHEN T.client_version = 5 THEN '!!! UPGRADE ISSUE !!! SQL 2005'
+		WHEN T.client_version = 6 THEN 'SQL 2008'
+		WHEN T.client_version = 7 THEN 'SQL 2012'
+		ELSE 'SQL 2014+'
+		END,'') [Section]
+		, ISNULL(CASE 
+		WHEN T.client_version < 6 THEN 'SQL Stick and clay tablets'
+		WHEN T.client_version = 6 THEN 'SQL 2008'
+		WHEN T.client_version = 7 THEN 'SQL 2012'
+		ELSE 'SQL 2014+'
+		END ,'')
+		+ 'App: [' + ISNULL(T.program_name,'')
+		+ ']; Driver: [' + ISNULL(
+		CASE SUBSTRING(CAST(C.protocol_version AS BINARY(4)), 1,1)
+		WHEN 0x04 THEN 'Pre-version SQL Server 7.0 - DBLibrary/ ISQL'
+		WHEN 0x70 THEN 'SQL Server 7.0'
+		WHEN 0x71 THEN 'SQL Server 2000'
+		WHEN 0x72 THEN 'SQL Server 2005'
+		WHEN 0x73 THEN 'SQL Server 2008'
+		WHEN 0x74 THEN 'SQL Server 2012/14/16'
+		ELSE 'Unknown driver'
+		END ,'')
+		+ ']; Interface: '+ ISNULL(T.client_interface_name,'')
+		+ '; User: ' + ISNULL(T.nt_user_name,'')
+		+ '; Host: ' + ISNULL(T.host_name,'') [Summary]
+		, '' + ISNULL(CASE WHEN quoted_identifier = 0 THEN ';quoted_identifier = OFF' ELSE '' END
+		+ ''+  CASE WHEN ansi_nulls = 0 THEN ';ansi_nulls = OFF' ELSE '' END
+		+ ''+  CASE WHEN ansi_padding = 0 THEN ';ansi_padding = OFF' ELSE '' END
+		+ ''+  CASE WHEN ansi_warnings = 0 THEN ';ansi_warnings = OFF' ELSE '' END
+		+ ''+  CASE WHEN arithabort = 0 THEN ';arithabort = OFF' ELSE '' END
+		+ ''+  CASE WHEN concat_null_yields_null = 0 THEN ';concat_null_yields_null = OFF' ELSE '' END,'')
+		FROM sys.dm_exec_sessions T
+		INNER JOIN sys.dm_exec_connections C ON C.session_id = T.session_id
+		WHERE ( 1 = 1
+		--AND LEN(ISNULL(T.nt_user_name,0)) > 1
+		AND T.program_name NOT LIKE 'SQLAgent - %' )
+		AND T.client_version < 6 
+		ORDER BY Section, [Summary];
+		PRINT N'WARNING! Upgrades may break clients connecting in';
 	END
 	RAISERROR (N'Done checking for possible breaking SQL 2000 things',0,1) WITH NOWAIT;
 
 			/*----------------------------------------
-			--Before anything else, look for things that might point to breaking behaviour. Like databse with bad default settings
+			--Before anything else, look for things that might point to breaking behaviour. Like database with bad default settings
 			----------------------------------------*/
 
 	IF EXISTS(SELECT 1
@@ -1964,52 +2036,50 @@ INSERT INTO @References VALUES ('Brent Ozar Unlimited','http://FirstResponderKit
 	Believe it or not, SQL Server doesn't track the default values
 	for sp_configure options! We'll make our own list here.*/
 
-	INSERT  INTO #ConfigurationDefaults
-	VALUES 
-	( 'access check cache bucket count', 0, 1001 )
-	, ( 'access check cache quota', 0, 1002 )
-	, ( 'Ad Hoc Distributed Queries', 0, 1003 )
-	, ( 'affinity I/O mask', 0, 1004 )
-	, ( 'affinity mask', 0, 1005 )
-	, ( 'affinity64 mask', 0, 1066 )
-	, ( 'affinity64 I/O mask', 0, 1067 )
-	, ( 'Agent XPs', 0, 1071 )
-	, ( 'allow updates', 0, 1007 )
-	, ( 'awe enabled', 0, 1008 )
-	, ( 'backup checksum default', 0, 1070 )
-	, ( 'backup compression default', 0, 1073 )
-	, ( 'blocked process threshold', 0, 1009 )
-	, ( 'blocked process threshold (s)', 0, 1009 )
-	, ( 'c2 audit mode', 0, 1010 )
-	, ( 'clr enabled', 0, 1011 )
-	, ( 'common criteria compliance enabled', 0, 1074 )
-	, ( 'contained database authentication', 0, 1068 )
-	, ( 'cost threshold for parallelism', 5, 1012 )
-	, ( 'cross db ownership chaining', 0, 1013 )
-	, ( 'cursor threshold', -1, 1014 )
-	, ( 'Database Mail XPs', 0, 1072 )
-	, ( 'default full-text language', 1033, 1016 )
-	, ( 'default language', 0, 1017 )
-	, ( 'default trace enabled', 1, 1018 )
-	, ( 'disallow results from triggers', 0, 1019 )
-	, ( 'EKM provider enabled', 0, 1075 )
-	, ( 'filestream access level', 0, 1076 )
-	, ( 'fill factor (%)', 0, 1020 )
-	, ( 'ft crawl bandwidth (max)', 100, 1021 )
-	, ( 'ft crawl bandwidth (min)', 0, 1022 )
-	, ( 'ft notify bandwidth (max)', 100, 1023 )
-	, ( 'ft notify bandwidth (min)', 0, 1024 )
-	, ( 'index create memory (KB)', 0, 1025 )
-	, ( 'in-doubt xact resolution', 0, 1026 )
-	, ( 'lightweight pooling', 0, 1027 )
-	, ( 'locks', 0, 1028 )
-	, ( 'max degree of parallelism', 0, 1029 )
-	, ( 'max full-text crawl range', 4, 1030 )
-	, ( 'max server memory (MB)', 2147483647, 1031 )
-	, ( 'max text repl size (B)', 65536, 1032 )
-	, ( 'max worker threads', 0, 1033 )
-	, ( 'media retention', 0, 1034 )
-	, ( 'min memory per query (KB)', 1024, 1035 );
+	INSERT  INTO #ConfigurationDefaults VALUES ( 'access check cache bucket count', 0, 1001 )
+	INSERT  INTO #ConfigurationDefaults VALUES  ( 'access check cache quota', 0, 1002 )
+	INSERT  INTO #ConfigurationDefaults VALUES  ( 'Ad Hoc Distributed Queries', 0, 1003 )
+	INSERT  INTO #ConfigurationDefaults VALUES  ( 'affinity I/O mask', 0, 1004 )
+	INSERT  INTO #ConfigurationDefaults VALUES  ( 'affinity mask', 0, 1005 )
+	INSERT  INTO #ConfigurationDefaults VALUES  ( 'affinity64 mask', 0, 1066 )
+	INSERT  INTO #ConfigurationDefaults VALUES  ( 'affinity64 I/O mask', 0, 1067 )
+	INSERT  INTO #ConfigurationDefaults VALUES  ( 'Agent XPs', 0, 1071 )
+	INSERT  INTO #ConfigurationDefaults VALUES  ( 'allow updates', 0, 1007 )
+	INSERT  INTO #ConfigurationDefaults VALUES  ( 'awe enabled', 0, 1008 )
+	INSERT  INTO #ConfigurationDefaults VALUES  ( 'backup checksum default', 0, 1070 )
+	INSERT  INTO #ConfigurationDefaults VALUES  ( 'backup compression default', 0, 1073 )
+	INSERT  INTO #ConfigurationDefaults VALUES  ( 'blocked process threshold', 0, 1009 )
+	INSERT  INTO #ConfigurationDefaults VALUES  ( 'blocked process threshold (s)', 0, 1009 )
+	INSERT  INTO #ConfigurationDefaults VALUES  ( 'c2 audit mode', 0, 1010 )
+	INSERT  INTO #ConfigurationDefaults VALUES  ( 'clr enabled', 0, 1011 )
+	INSERT  INTO #ConfigurationDefaults VALUES  ( 'common criteria compliance enabled', 0, 1074 )
+	INSERT  INTO #ConfigurationDefaults VALUES  ( 'contained database authentication', 0, 1068 )
+	INSERT  INTO #ConfigurationDefaults VALUES  ( 'cost threshold for parallelism', 5, 1012 )
+	INSERT  INTO #ConfigurationDefaults VALUES  ( 'cross db ownership chaining', 0, 1013 )
+	INSERT  INTO #ConfigurationDefaults VALUES  ( 'cursor threshold', -1, 1014 )
+	INSERT  INTO #ConfigurationDefaults VALUES  ( 'Database Mail XPs', 0, 1072 )
+	INSERT  INTO #ConfigurationDefaults VALUES  ( 'default full-text language', 1033, 1016 )
+	INSERT  INTO #ConfigurationDefaults VALUES  ( 'default language', 0, 1017 )
+	INSERT  INTO #ConfigurationDefaults VALUES  ( 'default trace enabled', 1, 1018 )
+	INSERT  INTO #ConfigurationDefaults VALUES  ( 'disallow results from triggers', 0, 1019 )
+	INSERT  INTO #ConfigurationDefaults VALUES  ( 'EKM provider enabled', 0, 1075 )
+	INSERT  INTO #ConfigurationDefaults VALUES  ( 'filestream access level', 0, 1076 )
+	INSERT  INTO #ConfigurationDefaults VALUES  ( 'fill factor (%)', 0, 1020 )
+	INSERT  INTO #ConfigurationDefaults VALUES  ( 'ft crawl bandwidth (max)', 100, 1021 )
+	INSERT  INTO #ConfigurationDefaults VALUES  ( 'ft crawl bandwidth (min)', 0, 1022 )
+	INSERT  INTO #ConfigurationDefaults VALUES  ( 'ft notify bandwidth (max)', 100, 1023 )
+	INSERT  INTO #ConfigurationDefaults VALUES  ( 'ft notify bandwidth (min)', 0, 1024 )
+	INSERT  INTO #ConfigurationDefaults VALUES  ( 'index create memory (KB)', 0, 1025 )
+	INSERT  INTO #ConfigurationDefaults VALUES  ( 'in-doubt xact resolution', 0, 1026 )
+	INSERT  INTO #ConfigurationDefaults VALUES  ( 'lightweight pooling', 0, 1027 )
+	INSERT  INTO #ConfigurationDefaults VALUES  ( 'locks', 0, 1028 )
+	INSERT  INTO #ConfigurationDefaults VALUES  ( 'max degree of parallelism', 0, 1029 )
+	INSERT  INTO #ConfigurationDefaults VALUES  ( 'max full-text crawl range', 4, 1030 )
+	INSERT  INTO #ConfigurationDefaults VALUES  ( 'max server memory (MB)', 2147483647, 1031 )
+	INSERT  INTO #ConfigurationDefaults VALUES  ( 'max text repl size (B)', 65536, 1032 )
+	INSERT  INTO #ConfigurationDefaults VALUES  ( 'max worker threads', 0, 1033 )
+	INSERT  INTO #ConfigurationDefaults VALUES  ( 'media retention', 0, 1034 )
+	INSERT  INTO #ConfigurationDefaults VALUES  ( 'min memory per query (KB)', 1024, 1035 );
 	/* Accepting both 0 and 16 below because both have been seen in the wild as defaults. */
 	IF EXISTS ( SELECT  *
 				FROM    sys.configurations
@@ -2024,21 +2094,19 @@ INSERT INTO @References VALUES ('Brent Ozar Unlimited','http://FirstResponderKit
 		INSERT  INTO #ConfigurationDefaults
 		VALUES  ( 'min server memory (MB)', 0, 1036 );
 
-	INSERT  INTO #ConfigurationDefaults
-	VALUES  ( 'nested triggers', 1, 1037 )
-
-	, ( 'network packet size (B)', 4096, 1038 )
-	, ( 'Ole Automation Procedures', 0, 1039 )
-	, ( 'open objects', 0, 1040 )
-	, ( 'optimize for ad hoc workloads', 0, 1041 )
-	, ( 'PH timeout (s)', 60, 1042 )
-	, ( 'precompute rank', 0, 1043 )
-	, ( 'priority boost', 0, 1044 )
-	, ( 'query governor cost limit', 0, 1045 )
-	, ( 'query wait (s)', -1, 1046 )
-	, ( 'recovery interval (min)', 0, 1047 )
-	, ( 'remote access', 1, 1048 )
-	, ( 'remote admin connections', 0, 1049 )
+	INSERT  INTO #ConfigurationDefaults VALUES  ( 'nested triggers', 1, 1037 )
+	INSERT  INTO #ConfigurationDefaults VALUES ( 'network packet size (B)', 4096, 1038 )
+	INSERT  INTO #ConfigurationDefaults VALUES ( 'Ole Automation Procedures', 0, 1039 )
+	INSERT  INTO #ConfigurationDefaults VALUES ( 'open objects', 0, 1040 )
+	INSERT  INTO #ConfigurationDefaults VALUES ( 'optimize for ad hoc workloads', 0, 1041 )
+	INSERT  INTO #ConfigurationDefaults VALUES ( 'PH timeout (s)', 60, 1042 )
+	INSERT  INTO #ConfigurationDefaults VALUES ( 'precompute rank', 0, 1043 )
+	INSERT  INTO #ConfigurationDefaults VALUES ( 'priority boost', 0, 1044 )
+	INSERT  INTO #ConfigurationDefaults VALUES ( 'query governor cost limit', 0, 1045 )
+	INSERT  INTO #ConfigurationDefaults VALUES ( 'query wait (s)', -1, 1046 )
+	INSERT  INTO #ConfigurationDefaults VALUES ( 'recovery interval (min)', 0, 1047 )
+	INSERT  INTO #ConfigurationDefaults VALUES ( 'remote access', 1, 1048 )
+	INSERT  INTO #ConfigurationDefaults VALUES ( 'remote admin connections', 0, 1049 )
 	/* SQL Server 2012 changes a configuration default */
 	IF @@VERSION LIKE '%Microsoft SQL Server 2005%'
 		OR @@VERSION LIKE '%Microsoft SQL Server 2008%'
@@ -2051,24 +2119,22 @@ INSERT INTO @References VALUES ('Brent Ozar Unlimited','http://FirstResponderKit
 			INSERT  INTO #ConfigurationDefaults
 			VALUES  ( 'remote login timeout (s)', 10, 1069 );
 		END
-	INSERT  INTO #ConfigurationDefaults
-	VALUES  
-	( 'remote proc trans', 0, 1050 )
-	, ( 'remote query timeout (s)', 600, 1051 )
-	, ( 'Replication XPs', 0, 1052 )
-	, ( 'RPC parameter data validation', 0, 1053 )
-	, ( 'scan for startup procs', 0, 1054 )
-	, ( 'server trigger recursion', 1, 1055 )
-	, ( 'set working set size', 0, 1056 )
-	, ( 'show advanced options', 0, 1057 )
-	, ( 'SMO and DMO XPs', 1, 1058 )
-	, ( 'SQL Mail XPs', 0, 1059 )
-	, ( 'transform noise words', 0, 1060 )
-	, ( 'two digit year cutoff', 2049, 1061 )
-	, ( 'user connections', 0, 1062 )
-	, ( 'user options', 0, 1063 )
-	, ( 'Web Assistant Procedures', 0, 1064 )
-	, ( 'xp_cmdshell', 0, 1065 );
+	INSERT  INTO #ConfigurationDefaults VALUES  ( 'remote proc trans', 0, 1050 )
+	INSERT  INTO #ConfigurationDefaults VALUES  ( 'remote query timeout (s)', 600, 1051 )
+	INSERT  INTO #ConfigurationDefaults VALUES  ( 'Replication XPs', 0, 1052 )
+	INSERT  INTO #ConfigurationDefaults VALUES  ( 'RPC parameter data validation', 0, 1053 )
+	INSERT  INTO #ConfigurationDefaults VALUES  ( 'scan for startup procs', 0, 1054 )
+	INSERT  INTO #ConfigurationDefaults VALUES  ( 'server trigger recursion', 1, 1055 )
+	INSERT  INTO #ConfigurationDefaults VALUES  ( 'set working set size', 0, 1056 )
+	INSERT  INTO #ConfigurationDefaults VALUES  ( 'show advanced options', 0, 1057 )
+	INSERT  INTO #ConfigurationDefaults VALUES  ( 'SMO and DMO XPs', 1, 1058 )
+	INSERT  INTO #ConfigurationDefaults VALUES  ( 'SQL Mail XPs', 0, 1059 )
+	INSERT  INTO #ConfigurationDefaults VALUES  ( 'transform noise words', 0, 1060 )
+	INSERT  INTO #ConfigurationDefaults VALUES  ( 'two digit year cutoff', 2049, 1061 )
+	INSERT  INTO #ConfigurationDefaults VALUES  ( 'user connections', 0, 1062 )
+	INSERT  INTO #ConfigurationDefaults VALUES  ( 'user options', 0, 1063 )
+	INSERT  INTO #ConfigurationDefaults VALUES  ( 'Web Assistant Procedures', 0, 1064 )
+	INSERT  INTO #ConfigurationDefaults VALUES  ( 'xp_cmdshell', 0, 1065 );
 
 
 	INSERT #output_man_script (SectionID, Section,Summary, Details) SELECT 25, 'Server details - Non default settings','------','------'

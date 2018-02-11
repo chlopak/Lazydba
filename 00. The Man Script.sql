@@ -8,7 +8,7 @@ SET TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
 DECLARE @TopQueries TINYINT 
 SET @TopQueries = 50  /*How many queries need to be looked at, TOP xx*/
 DECLARE @FTECost MONEY 
-SET @FTECost= 60000/*Average price in $$$ that you pay someone at your company*/
+SET @FTECost= 70000/*Average price in $$$ that you pay someone at your company*/
 DECLARE @MinExecutionCount TINYINT 
 SET @MinExecutionCount = 1 /*This can go to 0 for more details, but first attend to often used queries. Run this with 0 before making any big decisions*/
 DECLARE @ShowQueryPlan TINYINT 
@@ -400,26 +400,6 @@ INSERT INTO @References VALUES ('Jonathan Kehayias','https://www.red-gate.com/si
 		SET @rebuildonline = 'ON'; /*Can also use CAST(SERVERPROPERTY('EngineEdition') AS INT), thanks http://www.brentozar.com/ */
 	END
 
-	DECLARE @xp_errorlog TABLE(LogDate DATETIME,  ProcessInfo VARCHAR(250), Text NVARCHAR(500))
-
-	INSERT @xp_errorlog
-	EXEC sys.xp_readerrorlog 0, 1, N'locked pages'
-	INSERT @xp_errorlog
-	EXEC sys.xp_readerrorlog 0, 1, N'Database Instant File Initialization: enabled';
-
-	IF EXISTS ( SELECT * FROM @xp_errorlog WHERE [Text] LIKE '%locked pages%')
-	BEGIN
-		INSERT #output_man_script (SectionID,Section,Summary, Details) SELECT 0,'@' + CONVERT(VARCHAR(20),GETDATE(),120),'------','------'
-		INSERT #output_man_script (SectionID,Section,Summary)
-		SELECT 0,'Locked Pages in Memory','Consider changing. This was old best practice, not valid for VMs or post 2008. '
-	END
-
-	IF EXISTS ( SELECT * FROM @xp_errorlog WHERE [Text] LIKE '%File Initialization%')
-	BEGIN
-		INSERT #output_man_script (SectionID,Section,Summary, Details) SELECT 0,'@' + CONVERT(VARCHAR(20),GETDATE(),120),'------','------'
-		INSERT #output_man_script (SectionID,Section,Summary)
-		SELECT 0,'Instant File Initialization is OFF','Consider enabling this. Speeds up database data file growth. '
-	END
 
 	INSERT #output_man_script (SectionID,Section,Summary, Details) SELECT 0,'@' + CONVERT(VARCHAR(20),GETDATE(),120),'------','------'
 	INSERT #output_man_script (SectionID,Section,Summary)
@@ -431,7 +411,26 @@ INSERT INTO @References VALUES ('Jonathan Kehayias','https://www.red-gate.com/si
 	UNION ALL SELECT 0, 'Bad CPU balance', '['+REPLICATE('#', CONVERT(MONEY,([cpu_count] / [hyperthread_ratio]))) +'] Sockets ['+REPLICATE('+', CONVERT(MONEY,([cpu_count]))) +'] CPUs'
 			FROM [sys].[dm_os_sys_info] 
 			WHERE 0 = CASE WHEN [hyperthread_ratio] <> cpu_count THEN 0 ELSE 1 END
-		
+	
+	DECLARE @xp_errorlog TABLE(LogDate DATETIME,  ProcessInfo VARCHAR(250), Text NVARCHAR(500))
+
+	INSERT @xp_errorlog
+	EXEC sys.xp_readerrorlog 0, 1, N'locked pages'
+	INSERT @xp_errorlog
+	EXEC sys.xp_readerrorlog 0, 1, N'Database Instant File Initialization: enabled';
+
+	IF EXISTS ( SELECT * FROM @xp_errorlog WHERE [Text] LIKE '%locked pages%')
+	BEGIN
+		INSERT #output_man_script (SectionID,Section,Summary)
+		SELECT 0,'Locked Pages in Memory','Consider changing. This was old best practice, not valid for VMs or post 2008. '
+	END
+
+	IF EXISTS ( SELECT * FROM @xp_errorlog WHERE [Text] LIKE '%File Initialization%')
+	BEGIN
+		INSERT #output_man_script (SectionID,Section,Summary)
+		SELECT 0,'Instant File Initialization is OFF','Consider enabling this. Speeds up database data file growth. '
+	END
+	
 			/*----------------------------------------
 			--Check for high worker thread usage
 			----------------------------------------*/

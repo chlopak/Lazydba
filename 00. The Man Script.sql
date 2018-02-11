@@ -32,7 +32,11 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTH
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ----------------
 '
-/* Reference sources. There are tons of folk out there who have contributed to this in some form or another. Attempts have been made to quote sources and authors where available.*/
+/* Reference sources. Sources refer either to articles offering great insight, or to clever ways to look at data.
+All code used in this script is original code and great effort has been made to ensure that no copy/past extracts have been taken from any source. 
+There are tons of folk out there who have contributed to this effort in some form or another. Attempts have been made to quote sources and authors where available.
+If you feel any conribution should further be accredited or referenced, please let me know, I would appreciate and make the required changes.
+*/
 
 DECLARE @References TABLE(Authors VARCHAR(250), [Source] VARCHAR(250) , Detail VARCHAR(500))
 INSERT INTO @References VALUES ('Brent Ozar Unlimited','http://FirstResponderKit.org', 'Default Server Configuration values')
@@ -50,6 +54,7 @@ INSERT INTO @References VALUES ('wikiHow','http://www.wikihow.com/Calculate-Conf
 INSERT INTO @References VALUES ('Periscope Data','https://www.periscopedata.com/blog/how-to-calculate-confidence-intervals-in-sql','')
 INSERT INTO @References VALUES ('Jon M Crawford','https://www.sqlservercentral.com/Forums/Topic922290-338-1.aspx','')
 INSERT INTO @References VALUES ('Robert L Davis','http://www.sqlsoldier.com/wp/sqlserver/breakingdowntempdbcontentionpart2','')
+INSERT INTO @References VALUES ('Jonathan Kehayias','https://www.red-gate.com/simple-talk/sql/database-administration/great-sql-server-debates-lock-pages-in-memory/','For locked pages guidance')
 /* Guidelines:
 	1. Each declare on a new line
 	2. Each column on a new line
@@ -81,7 +86,7 @@ INSERT INTO @References VALUES ('Robert L Davis','http://www.sqlsoldier.com/wp/s
 		SET @matrixthisline = 0
 		SET @sliverofawesome = ''
 
-		WHILE @matrixthisline < 180
+		WHILE @matrixthisline < 90
 		BEGIN
 			SET @thischar = NCHAR(CONVERT(INT,RAND() *  1252))
 			IF LEN(@thischar) = 0 OR RAND() < 0.8
@@ -393,6 +398,27 @@ INSERT INTO @References VALUES ('Robert L Davis','http://www.sqlsoldier.com/wp/s
 	IF (@isEnterprise > 0) 
 	BEGIN 
 		SET @rebuildonline = 'ON'; /*Can also use CAST(SERVERPROPERTY('EngineEdition') AS INT), thanks http://www.brentozar.com/ */
+	END
+
+	DECLARE @xp_errorlog TABLE(LogDate DATETIME,  ProcessInfo VARCHAR(250), Text NVARCHAR(500))
+
+	INSERT @xp_errorlog
+	EXEC sys.xp_readerrorlog 0, 1, N'locked pages'
+	INSERT @xp_errorlog
+	EXEC sys.xp_readerrorlog 0, 1, N'Database Instant File Initialization: enabled';
+
+	IF EXISTS ( SELECT * FROM @xp_errorlog WHERE [Text] LIKE '%locked pages%')
+	BEGIN
+		INSERT #output_man_script (SectionID,Section,Summary, Details) SELECT 0,'@' + CONVERT(VARCHAR(20),GETDATE(),120),'------','------'
+		INSERT #output_man_script (SectionID,Section,Summary)
+		SELECT 0,'Locked Pages in Memory','Consider changing. This was old best practice, not valid for VMs or post 2008. '
+	END
+
+	IF EXISTS ( SELECT * FROM @xp_errorlog WHERE [Text] LIKE '%File Initialization%')
+	BEGIN
+		INSERT #output_man_script (SectionID,Section,Summary, Details) SELECT 0,'@' + CONVERT(VARCHAR(20),GETDATE(),120),'------','------'
+		INSERT #output_man_script (SectionID,Section,Summary)
+		SELECT 0,'Instant File Initialization is OFF','Consider enabling this. Speeds up database data file growth. '
 	END
 
 	INSERT #output_man_script (SectionID,Section,Summary, Details) SELECT 0,'@' + CONVERT(VARCHAR(20),GETDATE(),120),'------','------'

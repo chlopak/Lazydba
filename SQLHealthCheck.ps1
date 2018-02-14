@@ -22,8 +22,11 @@ This script is distrubeted under the MIT License.
 For more information  https://github.com/SQLAdrian/Lazydba/blob/master/LICENSE
 
 .Example 
- # Run the script in advanced mode, this script will now attempt to gain access to SQL server
+ # Run the script in advanced mode
 .\SQLHealthCheck.ps1 -mode Advanced
+
+# Run the script in advanced mode, this script will now attempt to gain access to SQL server
+.\SQLHealthCheck.ps1 -mode Advanced -hack Yes
 
 .Notes 
 This script assumes you are running under an account with Administrative privelages
@@ -40,9 +43,12 @@ http://lexel.co.nz, adrian.sullivan@lexel.co.nz
 Param(
   [Parameter(Mandatory=$false,Position=1)]
    [string]$Mode
+   , [Parameter(Mandatory=$false,Position=2)]
+   [string]$Hack
 )
 
 $Mode  = $Mode.ToUpper();
+$Hack  = $Hack.ToUpper();
 
 #00. Configuration stuff for this scripts
 Add-Type -assembly "system.io.compression.filesystem"
@@ -135,9 +141,9 @@ if($Mode -eq "ADVANCED")
 
 #Exlude these files from being executed by the script when looping the .sql files
 $ExludedFiles = @("sp_BlitzTrace.sql","00. TestPermission.sql","Check_BP_Servers.sql","MaintenanceSolution.sql")
-$downloadsplease = $False
+$downloadsplease = $true
 
-if($dontdodownloadsplease)
+if($downloadsplease)
 {
 	$urls = @("https://raw.githubusercontent.com/SQLAdrian/Lazydba/master/00.%20The%20Man%20Script.sql" `
 	, "https://raw.githubusercontent.com/BrentOzarULTD/SQL-Server-First-Responder-Kit/dev/sp_BlitzWho.sql" `
@@ -160,7 +166,7 @@ if($dontdodownloadsplease)
 		[array]::Reverse($arr)
 		$url2 = $arr -join ''
 		$file = $url.Substring($url.Length - $url2.IndexOf("/"))
-		$file = "$storageDir\$file"
+		$file = ("$storageDir\$file").Replace("%20"," ");
 		$webclient.DownloadFile($url,$file)
 	}
 }
@@ -210,7 +216,6 @@ foreach($RunningInstance in $SQLInstances)
 	#$SQLInstance
 	Write-Progress -id 2 -ParentId 1 -Activity "Lexel: Parsing $SQLInstance" -Status "1% Complete:" -PercentComplete 1 
 	#02. Test permissions
-	#$SQLInstance = "LXLSQLTRACKIT2"
 	$GetPermission = $False
 	Try
 	{
@@ -227,7 +232,7 @@ foreach($RunningInstance in $SQLInstances)
 	
     cd $currentpath
 	
-	if($Mode -eq "ADVANCED")
+	if($Mode -eq "ADVANCED" -AND $Hack -eq "Yes")
 	{
 		$GetPermission = $True
 	}
@@ -361,11 +366,9 @@ foreach($RunningInstance in $SQLInstances)
 			$currentvalue = Get-ItemProperty $path | Select-Object -ExpandProperty "ImagePath"
 			Write-Host "Current value : $currentvalue" -Foregroundcolor Red
 			Invoke-Item $SQLWriter_ImagePathFileLocation
-			
 		}
-		
-		
 	}
+	
 	Write-Progress -id 2 -ParentId 1 -Activity "Lexel: Parsing $SQLInstance" -Status "25% Complete:" -PercentComplete 25 
 
 	#03. Now we will run the SQL scripts in this folder against each instance
@@ -377,17 +380,25 @@ foreach($RunningInstance in $SQLInstances)
 	#Let's create the store procedures that we will be using, note that we are filtering only scripts that generate stored procedures
 	#Run SQLCMD for each file
 	
+	#!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+	#!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+	#THIS WILL UDPATE ALL STORED PROCEDURES
+	#!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+	#!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 	ForEach ($FileName in $FileNames)
 	{
 		if(!($ExludedFiles -contains $File))
 		{
-			#If the file is not in the exluded list then run it
+			#If the file is not in the excluded list then run it
 			$File = $Folder.Path + "\" + $FileName
 			$OutFile = $File + ".csv"
 			#sqlcmd -S $SQLInstance -E -i $File -s "~" -o $OutFile
 			sqlcmd -S $SQLInstance -E -I -i $File
 		}
 	}
+	#!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+	#!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+	
 	#Now we need to run the stored procedures
 	
 	#sqlcmd -S $SQLInstance -Q "" -i $File -s "~" -o $OutFile;

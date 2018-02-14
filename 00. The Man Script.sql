@@ -1,21 +1,4 @@
 PRINT 'SQL server evaluation script @ 11 July 2017 adrian.sullivan@lexel.co.nz ' + NCHAR(65021)
-
-SET NOCOUNT ON
-SET ANSI_WARNINGS ON
-SET QUOTED_IDENTIFIER ON
-SET TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
-
-DECLARE @TopQueries TINYINT 
-SET @TopQueries = 50  /*How many queries need to be looked at, TOP xx*/
-DECLARE @FTECost MONEY 
-SET @FTECost= 70000/*Average price in $$$ that you pay someone at your company*/
-DECLARE @MinExecutionCount TINYINT 
-SET @MinExecutionCount = 1 /*This can go to 0 for more details, but first attend to often used queries. Run this with 0 before making any big decisions*/
-DECLARE @ShowQueryPlan TINYINT 
-SET @ShowQueryPlan = 1 /*Set to 1 to include the Query plan in the output*/
-DECLARE @PrepForExport TINYINT 
-SET @PrepForExport = 1 /*When the intent of this script is to use this for some type of hocus-pocus magic metrics, set this to 1*/
-
 DECLARE @License NVARCHAR(4000)
 SET @License = '----------------
 MIT License
@@ -32,10 +15,11 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTH
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ----------------
 '
+
 /* Reference sources. Sources refer either to articles offering great insight, or to clever ways to look at data.
 All code used in this script is original code and great effort has been made to ensure that no copy/past extracts have been taken from any source. 
 There are tons of folk out there who have contributed to this effort in some form or another. Attempts have been made to quote sources and authors where available.
-If you feel any conribution should further be accredited or referenced, please let me know, I would appreciate and make the required changes.
+If you feel any contribution should further be accredited or referenced, please let me know, I would appreciate and make the required changes.
 */
 
 DECLARE @References TABLE(Authors VARCHAR(250), [Source] VARCHAR(250) , Detail VARCHAR(500))
@@ -55,6 +39,105 @@ INSERT INTO @References VALUES ('Periscope Data','https://www.periscopedata.com/
 INSERT INTO @References VALUES ('Jon M Crawford','https://www.sqlservercentral.com/Forums/Topic922290-338-1.aspx','')
 INSERT INTO @References VALUES ('Robert L Davis','http://www.sqlsoldier.com/wp/sqlserver/breakingdowntempdbcontentionpart2','')
 INSERT INTO @References VALUES ('Jonathan Kehayias','https://www.red-gate.com/simple-talk/sql/database-administration/great-sql-server-debates-lock-pages-in-memory/','For locked pages guidance')
+INSERT INTO @REFERENCES VALUES ('Laerte Junior','https://www.red-gate.com/simple-talk/sql/database-administration/the-posh-dba-solutions-using-powershell-and-sql-server/','For doing PowerShell magic in SQL')
+
+
+SET NOCOUNT ON
+SET ANSI_WARNINGS ON
+SET QUOTED_IDENTIFIER ON
+SET TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
+
+/* Before doing anything, you can rather run the current version of this script from the interwebs*/
+
+DECLARE @pstext VARCHAR(8000)
+DECLARE @RunUpdatedVersion BIT
+ /*Only modify this following line if you want recursive pain. ! it should read "SET @RunUpdatedVersion = ?" where ? is the option */
+SET @RunUpdatedVersion = 1
+
+IF @RunUpdatedVersion = 1
+BEGIN
+	/*Generate PowerShell to download your file*/
+	EXEC sp_configure 'show advanced options', 1
+	RECONFIGURE
+	-- enable xp_cmdshell
+	EXEC sp_configure 'xp_cmdshell', 1
+	RECONFIGURE
+	-- hide advanced options
+	EXEC sp_configure 'show advanced options', 0
+	RECONFIGURE
+
+	SET @pstext = '$thispath = pwd;' ;
+	SET @pstext = @pstext + '$notthispath = "C:\Windows\system32"; ';
+	SET @pstext = @pstext + ' ; ';
+	SET @pstext = @pstext + 'if($thispath.Path -eq $notthispath)';
+	SET @pstext = @pstext + '{$thispath = $env:TEMP};';
+	SET @pstext = @pstext + '$url = "https://raw.githubusercontent.com/SQLAdrian/Lazydba/master/SQLHealthCheck.ps1" ;';
+	SET @pstext = @pstext + '$path = "$thispath\SQLHealthCheck.ps1";';
+	SET @pstext = @pstext + '$thispath;';
+	SET @pstext = @pstext + 'if(!(Split-Path -parent $path) -or !(Test-Path -pathType Container (Split-Path -parent $path))) {$path = Join-Path $pwd (Split-Path -leaf $path)};';
+	SET @pstext = @pstext + '$client = new-object System.Net.WebClient ;';
+    SET @pstext = @pstext + '$client.DownloadFile($url, $path) ;';
+    SET @pstext = @pstext + 'Write-Host "Go to $thispath to see the files";';
+	SET @pstext = @pstext + 'cd $thispath;';
+	SET @pstext = @pstext + '.\SQLHealthCheck.ps1 -mode Advanced;';
+	--SET @pstext = @pstext + 'sqlcmd -S $SQLInstance -E -I -i $File";';
+
+	--SET @pstext = @pstext + ' |ConvertTo-XML -As string '
+	SET @pstext = REPLACE(REPLACE(@pstext,'"','"""'),';;',';')
+	SET @pstext = 'powershell.exe -ExecutionPolicy Bypass -NoLogo -NonInteractive -NoProfile -Command "' + @pstext + '" '
+	PRINT @pstext
+	EXEC xp_cmdshell @pstext
+
+END
+
+
+
+IF @RunUpdatedVersion = 1
+BEGIN
+	
+	
+	SET @pstext = 'pwd' 
+	SET @pstext = REPLACE(REPLACE(@pstext,'"','"""'),';;',';')
+	SET @pstext = 'powershell.exe -ExecutionPolicy Bypass -NoLogo -NonInteractive -NoProfile -Command "' + @pstext + '" '
+	PRINT @pstext
+
+	EXEC xp_cmdshell @pstext
+		
+
+	SET @pstext = '$thispath = pwd;' ;
+	SET @pstext = @pstext + '$notthispath = "C:\Windows\system32"; ';
+	SET @pstext = @pstext + ' ; ';
+	SET @pstext = @pstext + 'if($thispath.Path -eq $notthispath)';
+	SET @pstext = @pstext + '{$thispath = $env:TEMP};';
+	SET @pstext = @pstext + '$url = "https://raw.githubusercontent.com/SQLAdrian/Lazydba/master/SQLHealthCheck.ps1" ;';
+	SET @pstext = @pstext + '$path = "$thispath\SQLHealthCheck.ps1";';
+	SET @pstext = @pstext + '$thispath;';
+	SET @pstext = @pstext + 'if(!(Split-Path -parent $path) -or !(Test-Path -pathType Container (Split-Path -parent $path))) {$path = Join-Path $pwd (Split-Path -leaf $path)};';
+	SET @pstext = @pstext + '$client = new-object System.Net.WebClient ;';
+    SET @pstext = @pstext + '$client.DownloadFile($url, $path) ;';
+    SET @pstext = @pstext + 'Write-Host "Go to $thispath to see the files";';
+	--SET @pstext = @pstext + ' |ConvertTo-XML -As string '
+	SET @pstext = REPLACE(REPLACE(@pstext,'"','"""'),';;',';')
+	SET @pstext = 'powershell.exe -ExecutionPolicy Bypass -NoLogo -NonInteractive -NoProfile -Command "' + @pstext + '" '
+	PRINT @pstext
+	EXEC xp_cmdshell @pstext
+
+END
+ELSE
+BEGIN
+
+DECLARE @TopQueries TINYINT 
+SET @TopQueries = 50  /*How many queries need to be looked at, TOP xx*/
+DECLARE @FTECost MONEY 
+SET @FTECost= 70000/*Average price in $$$ that you pay someone at your company*/
+DECLARE @MinExecutionCount TINYINT 
+SET @MinExecutionCount = 1 /*This can go to 0 for more details, but first attend to often used queries. Run this with 0 before making any big decisions*/
+DECLARE @ShowQueryPlan TINYINT 
+SET @ShowQueryPlan = 1 /*Set to 1 to include the Query plan in the output*/
+DECLARE @PrepForExport TINYINT 
+SET @PrepForExport = 1 /*When the intent of this script is to use this for some type of hocus-pocus magic metrics, set this to 1*/
+
+
 /* Guidelines:
 	1. Each declare on a new line
 	2. Each column on a new line

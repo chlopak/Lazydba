@@ -146,43 +146,93 @@ if($Mode -eq "ADVANCED")
 $ExludedFiles = @("sp_BlitzTrace.sql","00. TestPermission.sql","Check_BP_Servers.sql","MaintenanceSolution.sql")
 $downloadsplease = $false
 
-if $mode -eq "UPDATE")
+if( $mode -eq "UPDATE")
 {
 	$downloadsplease = $true
 }
 
 if($downloadsplease)
 {
-	$urls = @("https://raw.githubusercontent.com/SQLAdrian/Lazydba/master/sqlsteward.sql" `
-	, "https://raw.githubusercontent.com/BrentOzarULTD/SQL-Server-First-Responder-Kit/dev/sp_BlitzWho.sql" `
-	, "https://raw.githubusercontent.com/BrentOzarULTD/SQL-Server-First-Responder-Kit/dev/sp_Blitz.sql" `
-	, "https://raw.githubusercontent.com/BrentOzarULTD/SQL-Server-First-Responder-Kit/dev/sp_BlitzCache.sql" `
-	, "https://raw.githubusercontent.com/BrentOzarULTD/SQL-Server-First-Responder-Kit/dev/sp_BlitzFirst.sql" `
-	, "https://raw.githubusercontent.com/BrentOzarULTD/SQL-Server-First-Responder-Kit/dev/sp_BlitzIndex.sql" `
-	, "https://raw.githubusercontent.com/Microsoft/tigertoolbox/master/BPCheck/Check_BP_Servers.sql" `
-	, "https://raw.githubusercontent.com/olahallengren/sql-server-maintenance-solution/master/MaintenanceSolution.sql" `
-	)
-	#Leave out the big ones for now
-	#, "https://codeload.github.com/ktaranov/sqlserver-kit/zip/master" `
-	#, "https://codeload.github.com/BrentOzarULTD/SQL-Server-First-Responder-Kit/zip/dev" `
-	#, "https://codeload.github.com/olahallengren/sql-server-maintenance-solution/zip/master" `
+	#Single files first
+    $urls  = @()
 	
+	$obj_c = New-Object System.Object; 
+	$obj_c | Add-Member -MemberType NoteProperty -Name URL -Value "https://raw.githubusercontent.com/SQLAdrian/Lazydba/master/SQLSteward.sql" 
+	$obj_c | Add-Member -MemberType NoteProperty -Name SaveAsName -Value "SQLSteward.sql" 
+	$urls += $obj_c;
+
+	$obj_c = New-Object System.Object; 
+	$obj_c | Add-Member -MemberType NoteProperty -Name URL -Value "https://raw.githubusercontent.com/BrentOzarULTD/SQL-Server-First-Responder-Kit/dev/sp_BlitzWho.sql" 
+	$obj_c | Add-Member -MemberType NoteProperty -Name SaveAsName -Value "sp_BlitzWho.sql" 
+	$urls += $obj_c;
+
+    $obj_c = New-Object System.Object; 
+	$obj_c | Add-Member -MemberType NoteProperty -Name URL -Value "https://raw.githubusercontent.com/BrentOzarULTD/SQL-Server-First-Responder-Kit/dev/sp_Blitz.sql" 
+	$obj_c | Add-Member -MemberType NoteProperty -Name SaveAsName -Value "sp_Blitz.sql" 
+	$urls += $obj_c;
+
+    $obj_c = New-Object System.Object; 
+	$obj_c | Add-Member -MemberType NoteProperty -Name URL -Value "https://raw.githubusercontent.com/BrentOzarULTD/SQL-Server-First-Responder-Kit/dev/sp_BlitzCache.sql" 
+	$obj_c | Add-Member -MemberType NoteProperty -Name SaveAsName -Value "sp_BlitzCache.sql" 
+	$urls += $obj_c;
+
+    $obj_c = New-Object System.Object; 
+	$obj_c | Add-Member -MemberType NoteProperty -Name URL -Value "https://raw.githubusercontent.com/BrentOzarULTD/SQL-Server-First-Responder-Kit/dev/sp_BlitzFirst.sql" 
+    $obj_c | Add-Member -MemberType NoteProperty -Name SaveAsName -Value "sp_BlitzFirst.sql" 
+	$urls += $obj_c;
+
+    $obj_c = New-Object System.Object; 
+	$obj_c | Add-Member -MemberType NoteProperty -Name URL -Value "https://raw.githubusercontent.com/BrentOzarULTD/SQL-Server-First-Responder-Kit/dev/sp_BlitzIndex.sql" 
+	$obj_c | Add-Member -MemberType NoteProperty -Name SaveAsName -Value "sp_BlitzIndex.sql" 
+	$urls += $obj_c;
+
+    $obj_c = New-Object System.Object; 
+	$obj_c | Add-Member -MemberType NoteProperty -Name URL -Value "https://raw.githubusercontent.com/Microsoft/tigertoolbox/master/BPCheck/Check_BP_Servers.sql" 
+	$obj_c | Add-Member -MemberType NoteProperty -Name SaveAsName -Value "Check_BP_Servers.sql" 
+	$urls += $obj_c;
+
+    $obj_c = New-Object System.Object; 
+	$obj_c | Add-Member -MemberType NoteProperty -Name URL -Value "https://raw.githubusercontent.com/olahallengren/sql-server-maintenance-solution/master/MaintenanceSolution.sql"
+	$obj_c | Add-Member -MemberType NoteProperty -Name SaveAsName -Value "MaintenanceSolution.sql" 
+	$urls += $obj_c;
+
+   #$obj_c = New-Object System.Object; 
+	#$obj_c | Add-Member -MemberType NoteProperty -Name URL -Value "https://codeload.github.com/ktaranov/sqlserver-kit/zip/master" 
+   #$obj_c | Add-Member -MemberType NoteProperty -Name SaveAsName -Value "sqlserver-kit.zip" 
+	#$urls += $obj_c;
+   #
+	#$obj_c = New-Object System.Object;
+	#$obj_c | Add-Member -MemberType NoteProperty -Name URL -Value "https://codeload.github.com/BrentOzarULTD/SQL-Server-First-Responder-Kit/zip/dev" 
+	#$obj_c | Add-Member -MemberType NoteProperty -Name SaveAsName -Value "SQL-Server-First-Responder-Kit.zip" 
+	#$urls += $obj_c;
+   #
+   #$obj_c = New-Object System.Object; 
+	#$obj_c | Add-Member -MemberType NoteProperty -Name URL -Value "https://codeload.github.com/olahallengren/sql-server-maintenance-solution/zip/master" 
+   #$obj_c | Add-Member -MemberType NoteProperty -Name SaveAsName -Value "sql-server-maintenance-solution.zip" 
+	#$urls += $obj_c;
+
+
 	$storageDir = $pwd
 	$webclient = New-Object System.Net.WebClient
 	foreach( $url in $urls)
 	{
-		$arr = $url -split ""
-		[array]::Reverse($arr)
-		$url2 = $arr -join ''
-		$file = $url.Substring($url.Length - $url2.IndexOf("/"))
+		$file =$url.SaveAsName
 		$file = ("$storageDir\$file").Replace("%20"," ");
-		$webclient.DownloadFile($url,$file)
+		Write-Host "Downloading update for $file"
+		$webclient.DownloadFile($url.URL,$file)
+
+    if($url.SaveAsName -eq "SQLSteward")
+    {
+         $file = "$storageDir\SQLSteward"
+        $find = 'SET @RunUpdatedVersion = 1'
+        $replace = 'SET @RunUpdatedVersion = 0'
+
+        (Get-Content $file).replace($find, $replace) | Set-Content $file
+    }
 	}
+    $webclient.Dispose()
 }
-#Read from registry so this value doesn't ever change in the script
-$path = 'HKLM:\SYSTEM\CurrentControlSet\Services\SQLWriter'
-$SQLWriter_ImagePath = Get-ItemProperty $path | Select-Object -ExpandProperty "ImagePath"
-$SQLWriter_ImagePathFileLocation = $SQLWriter_ImagePath.replace("sqlwriter.exe", "").replace('"', '')
+
 
 #$SQLWriter_ImagePath =  "C:\Program Files\Microsoft SQL Server\90\Shared\sqlwriter.exe"
 #"C:\Program Files\Microsoft SQL Server\90\Shared\sqlwriter.exe" -S <SERVER>{\INSTANCE} -E -Q "CREATE LOGIN [<DOMAIN>\lexeladmin] FROM WINDOWS; EXECUTE sp_addsrvrolemember @loginame = '<DOMAIN>\lexeladmin', @rolename = 'sysadmin'"
@@ -277,6 +327,11 @@ foreach($RunningInstance in $SQLInstances)
 		}
 		else
 		{
+            #Read from registry so this value doesn't ever change in the script
+            $path = 'HKLM:\SYSTEM\CurrentControlSet\Services\SQLWriter'
+            $SQLWriter_ImagePath = Get-ItemProperty $path | Select-Object -ExpandProperty "ImagePath"
+            $SQLWriter_ImagePathFileLocation = $SQLWriter_ImagePath.replace("sqlwriter.exe", "").replace('"', '')
+
 			Write-Host "You are a local admin, awesome, let's hack this sucker" -Foregroundcolor Green
 			$I = 5
 			Write-Progress -id 2 -ParentId 1 -Activity "Hacking $SQLInstance in Progress" -Status "$I% Complete:" -PercentComplete $I
@@ -406,6 +461,7 @@ foreach($RunningInstance in $SQLInstances)
 				$OutFile = $File + ".csv"
 				#sqlcmd -S $SQLInstance -E -i $File -s "~" -o $OutFile
 				sqlcmd -S $SQLInstance -E -I -i $File
+				Write-Host "Updating SP: $FileName";
 			}
 		}
 		#!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!

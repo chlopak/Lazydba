@@ -28,6 +28,9 @@ For more information  https://github.com/SQLAdrian/Lazydba/blob/master/LICENSE
 # Run the script in advanced mode, this script will now attempt to gain access to SQL server
 .\SQLHealthCheck.ps1 -mode Advanced -hack Yes
 
+# Run the script in update mode, this will just update stored procedures
+.\SQLHealthCheck.ps1 -mode Update
+
 .Notes 
 This script assumes you are running under an account with Administrative privelages
 
@@ -141,11 +144,16 @@ if($Mode -eq "ADVANCED")
 
 #Exlude these files from being executed by the script when looping the .sql files
 $ExludedFiles = @("sp_BlitzTrace.sql","00. TestPermission.sql","Check_BP_Servers.sql","MaintenanceSolution.sql")
-$downloadsplease = $true
+$downloadsplease = $false
+
+if $mode -eq "UPDATE")
+{
+	$downloadsplease = $true
+}
 
 if($downloadsplease)
 {
-	$urls = @("https://raw.githubusercontent.com/SQLAdrian/Lazydba/master/00.%20The%20Man%20Script.sql" `
+	$urls = @("https://raw.githubusercontent.com/SQLAdrian/Lazydba/master/sqlsteward.sql" `
 	, "https://raw.githubusercontent.com/BrentOzarULTD/SQL-Server-First-Responder-Kit/dev/sp_BlitzWho.sql" `
 	, "https://raw.githubusercontent.com/BrentOzarULTD/SQL-Server-First-Responder-Kit/dev/sp_Blitz.sql" `
 	, "https://raw.githubusercontent.com/BrentOzarULTD/SQL-Server-First-Responder-Kit/dev/sp_BlitzCache.sql" `
@@ -153,11 +161,12 @@ if($downloadsplease)
 	, "https://raw.githubusercontent.com/BrentOzarULTD/SQL-Server-First-Responder-Kit/dev/sp_BlitzIndex.sql" `
 	, "https://raw.githubusercontent.com/Microsoft/tigertoolbox/master/BPCheck/Check_BP_Servers.sql" `
 	, "https://raw.githubusercontent.com/olahallengren/sql-server-maintenance-solution/master/MaintenanceSolution.sql" `
-	, "https://codeload.github.com/ktaranov/sqlserver-kit/zip/master" `
-	, "https://codeload.github.com/BrentOzarULTD/SQL-Server-First-Responder-Kit/zip/dev" `
-	, "https://codeload.github.com/olahallengren/sql-server-maintenance-solution/zip/master" `
 	)
-
+	#Leave out the big ones for now
+	#, "https://codeload.github.com/ktaranov/sqlserver-kit/zip/master" `
+	#, "https://codeload.github.com/BrentOzarULTD/SQL-Server-First-Responder-Kit/zip/dev" `
+	#, "https://codeload.github.com/olahallengren/sql-server-maintenance-solution/zip/master" `
+	
 	$storageDir = $pwd
 	$webclient = New-Object System.Net.WebClient
 	foreach( $url in $urls)
@@ -216,7 +225,7 @@ foreach($RunningInstance in $SQLInstances)
 	#$SQLInstance
 	Write-Progress -id 2 -ParentId 1 -Activity "Lexel: Parsing $SQLInstance" -Status "1% Complete:" -PercentComplete 1 
 	#02. Test permissions
-	$GetPermission = $False
+	$GetPermission = $false
 	Try
 	{
         $SQLQuery = "SET NOCOUNT ON;select 1 from sys.dm_broker_connections;"
@@ -227,18 +236,18 @@ foreach($RunningInstance in $SQLInstances)
 	Catch [system.exception]
 	{
 		Write-Host 'Error during login'
-        $GetPermission = $True
+        $GetPermission = $true
 	}
 	
     cd $currentpath
 	
 	if($Mode -eq "ADVANCED" -AND $Hack -eq "Yes")
 	{
-		$GetPermission = $True
+		$GetPermission = $true
 	}
 	else
 	{
-		$GetPermission = $False
+		$GetPermission = $false
 	}
 	
 	
@@ -380,34 +389,40 @@ foreach($RunningInstance in $SQLInstances)
 	#Let's create the store procedures that we will be using, note that we are filtering only scripts that generate stored procedures
 	#Run SQLCMD for each file
 	
-	#!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-	#!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-	#THIS WILL UDPATE ALL STORED PROCEDURES
-	#!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-	#!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-	ForEach ($FileName in $FileNames)
+	
+	if( $mode -eq "UPDATE")
 	{
-		if(!($ExludedFiles -contains $File))
+		#!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+		#!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+		#THIS WILL UDPATE ALL STORED PROCEDURES
+		#!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+		#!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+		ForEach ($FileName in $FileNames)
 		{
-			#If the file is not in the excluded list then run it
-			$File = $Folder.Path + "\" + $FileName
-			$OutFile = $File + ".csv"
-			#sqlcmd -S $SQLInstance -E -i $File -s "~" -o $OutFile
-			sqlcmd -S $SQLInstance -E -I -i $File
+			if(!($ExludedFiles -contains $File))
+			{
+				#If the file is not in the excluded list then run it
+				$File = $Folder.Path + "\" + $FileName
+				$OutFile = $File + ".csv"
+				#sqlcmd -S $SQLInstance -E -i $File -s "~" -o $OutFile
+				sqlcmd -S $SQLInstance -E -I -i $File
+			}
 		}
+		#!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+		#!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+		
+	
 	}
-	#!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-	#!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-	
+	else
+	{
 	#Now we need to run the stored procedures
-	
 	#sqlcmd -S $SQLInstance -Q "" -i $File -s "~" -o $OutFile;
 	$datestamp = Get-Date
 	$domain = (Get-WmiObject Win32_ComputerSystem).Domain.replace(".local","")
-	$datasource = "a77bhopf50.database.windows.net"
-	$datausername = "db_43662fa1_3548_479f_ae6e_6ee1509c3468_ExternalWriter"
-	$datapassword = "GZv_Gd9Tg9oFPLO"
-	$database = "db_43662fa1_3548_479f_ae6e_6ee1509c3468"
+	$datasource = ".windows.net"
+	$datausername = ""
+	$datapassword = ""
+	$database = ""
 	$DBSchema = "Access"
 	$connectionstring = "Data Source=$datasource;User=$datausername;password=$datapassword;Initial Catalog=$database" 
 	$batchsize = 5000 
@@ -419,6 +434,11 @@ foreach($RunningInstance in $SQLInstances)
 	$ScriptsConfig  = @()
 	
 	$obj_c = New-Object System.Object; 
+	$obj_c | Add-Member -MemberType NoteProperty -Name ScriptName -Value "sqlsteward" 
+	$obj_c | Add-Member -MemberType NoteProperty -Name spCommand -Value "EXEC [dbo].[sqlsteward] @TopQueries = 50, @FTECost  = 60000, @ShowQueryPlan = 0, @PrepForExport = 1;"
+	$ScriptsConfig += $obj_c;
+	
+	$obj_c = New-Object System.Object; 
 	$obj_c | Add-Member -MemberType NoteProperty -Name ScriptName -Value "sp_Blitz" 
 	$obj_c | Add-Member -MemberType NoteProperty -Name spCommand -Value "EXEC [dbo].[sp_Blitz] @CheckUserDatabaseObjects = 1 ,@CheckProcedureCache = 1 ,@OutputType = 'TABLE' ,@OutputProcedureCache = 0 ,@CheckProcedureCacheFilter = NULL,@CheckServerInfo = 1;" 
 	$ScriptsConfig += $obj_c;
@@ -428,15 +448,9 @@ foreach($RunningInstance in $SQLInstances)
 	$obj_c | Add-Member -MemberType NoteProperty -Name spCommand -Value "EXEC [dbo].[sp_BlitzIndex] @Mode = 4, @SkipStatistics = 0, @GetAllDatabases = 1, @OutputServerName = 1, @OutputDatabaseName = 1;"
 	$ScriptsConfig += $obj_c;
 	
-	$obj_c = New-Object System.Object; 
-	$obj_c | Add-Member -MemberType NoteProperty -Name ScriptName -Value "the_management_script" 
-	$obj_c | Add-Member -MemberType NoteProperty -Name spCommand -Value "EXEC [dbo].[the_management_script] @TopQueries = 50, @FTECost  = 60000, @ShowQueryPlan = 0, @PrepForExport = 1;"
-	$ScriptsConfig += $obj_c;
+
 	
-	$obj_c = New-Object System.Object; 
-	$obj_c | Add-Member -MemberType NoteProperty -Name ScriptName -Value "the_management_performance_report" 
-	$obj_c | Add-Member -MemberType NoteProperty -Name spCommand -Value "EXEC [dbo].[the_management_performance_report] @MinExecutionCount = 5;"
-	$ScriptsConfig += $obj_c;
+	
 	$currentscript = 1
 	Write-Progress -id 2 -ParentId 1 -Activity "Lexel: Parsing $SQLInstance" -Status "25% Complete:" -PercentComplete 25 
 	Write-Progress -id 4 -ParentId 2 -Activity "Lexel: Running SQL Scripts" -Status "0% Complete:" -PercentComplete 0
@@ -479,17 +493,20 @@ foreach($RunningInstance in $SQLInstances)
 				}
 				$datatable.Rows.Add($newrow);
 			}
-			$bulkcopy = New-Object Data.SqlClient.SqlBulkCopy($connectionstring, [System.Data.SqlClient.SqlBulkCopyOptions]::TableLock) 
-			$bulkcopy.DestinationTableName = $targetTable
-			$bulkcopy.bulkcopyTimeout = 0 
-			$bulkcopy.batchsize = $batchsize 
-			try
+			if("This still has to be " -eq "configured")
 			{
-				$bulkCopy.WriteToServer($datatable)
-			}
-			catch
-			{
-				Write-Host "Error writing to SQL server" -Foregroundcolor Red
+				$bulkcopy = New-Object Data.SqlClient.SqlBulkCopy($connectionstring, [System.Data.SqlClient.SqlBulkCopyOptions]::TableLock) 
+				$bulkcopy.DestinationTableName = $targetTable
+				$bulkcopy.bulkcopyTimeout = 0 
+				$bulkcopy.batchsize = $batchsize 
+				try
+				{
+					$bulkCopy.WriteToServer($datatable)
+				}
+				catch
+				{
+					Write-Host "Error writing to SQL server" -Foregroundcolor Red
+				}
 			}
 		}
 		Write-Progress -id 3 -ParentId 2 -Activity "Lexel: Running SQL $ScriptName" -Status "100% Complete:" -PercentComplete 100
@@ -500,7 +517,7 @@ foreach($RunningInstance in $SQLInstances)
 		$overall_progress_instance = [math]::floor(75*$progress_scripts/100)
 		Write-Progress -id 2 -ParentId 1 -Activity "Lexel: Parsing $SQLInstance" -Status "$overall_progress_instance% Complete:" -PercentComplete $overall_progress_instance 
 	}
-	
+	}
 	}
 	catch
 	{
@@ -512,14 +529,16 @@ foreach($RunningInstance in $SQLInstances)
 	
 }
 
-$outputzipdestination = "$currentpath" + "\" + $SQLnameforfile + "_" + $timestampforfile + ".zip"
-If(Test-path $outputzipdestination) {Remove-item $outputzipdestination}
-if($outfolder)
+if( $mode -ne "UPDATE")
 {
-	[io.compression.zipfile]::CreateFromDirectory($outfolder , $outputzipdestination) 
-	If(Test-path $outfolder) {Remove-item $outfolder -Recurse}
+	$outputzipdestination = "$currentpath" + "\" + $SQLnameforfile + "_" + $timestampforfile + ".zip"
+	If(Test-path $outputzipdestination) {Remove-item $outputzipdestination}
+	if($outfolder)
+	{
+		[io.compression.zipfile]::CreateFromDirectory($outfolder , $outputzipdestination) 
+		If(Test-path $outfolder) {Remove-item $outfolder -Recurse}
+	}
 }
-
 Write-Host "I think we are done here for now." -Foregroundcolor Green
 
 #	#Run SQLCMD for each file

@@ -28,7 +28,7 @@ BEGIN
 	LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 	----------------
 	'
-
+	SET NOCOUNT ON;
 /* Guidelines:
 	1. Each declare on a new line
 	2. Each column on a new line
@@ -55,7 +55,7 @@ BEGIN
 	DECLARE @sliverofawesome NVARCHAR(200)
 	DECLARE @thischar NVARCHAR(1)
 
-	WHILE @matrixthis < 100
+	WHILE @matrixthis < 25
 	BEGIN
 		SET @matrixthisline = 0
 		SET @sliverofawesome = ''
@@ -333,9 +333,25 @@ BEGIN
 	Alter table #dbccloginfo Add parity tinyint
 	Alter table #dbccloginfo Add create_lsn numeric(25,0)  
 
+
+
+
 	DECLARE @msversion TABLE([Index] INT, Name VARCHAR(50), [Internal_Value] VARCHAR(50), [Character_Value] VARCHAR(250))
 	INSERT @msversion
 	EXEC xp_msver /*Rather useful this one*/
+
+	--DECLARE @quicksql NVARCHAR(500)
+	--SET @quicksql = N'EXEC Get_xp_msver '
+	--
+	--EXEC sp_executesql @quicksql
+
+
+
+
+
+
+
+
 
 	--SELECT CONVERT(MONEY,LEFT(Character_Value,3)) FROM @msversion WHERE Name = 'WindowsVersion'
 
@@ -2936,7 +2952,7 @@ From Tasks;
 			/*----------------------------------------
 			--select output
 			----------------------------------------*/
-     
+   
 	SELECT T1.ID
 	,  evaldate
 	, T1.domain

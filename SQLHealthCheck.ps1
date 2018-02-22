@@ -54,7 +54,7 @@ $Mode  = $Mode.ToUpper();
 $Hack  = $Hack.ToUpper();
 
 #00. Configuration stuff for this scripts
-Add-Type -assembly "system.io.compression.filesystem"
+#Add-Type -assembly "system.io.compression.filesystem"
 $currentpath = $pwd
 $PushToDatabase = $False
 

@@ -78,19 +78,12 @@ BEGIN
 	SET @pstext = @pstext + '$url = "https://raw.githubusercontent.com/SQLAdrian/Lazydba/master/SQLHealthCheck.ps1" ;';
 	SET @pstext = @pstext + '$path = "$thispath\SQLHealthCheck.ps1";';
 	SET @pstext = @pstext + '$thispath;';
-	SET @pstext = @pstext + '[System.Net.ServicePointManager]::ServerCertificateValidationCallback = {$true};';
-	SET @pstext = @pstext + 'if(!(Split-Path -parent $path) -or !(Test-Path -pathType Container (Split-Path -parent $path))) {$path = Join-Path $pwd (Split-Path -leaf $path)};';
-	SET @pstext = @pstext + '[Net.ServicePointManager]::SecurityProtocol = "ssl3,tls12, tls11, tls";';
-	--Invoke-Expression (New-Object Net.WebClient).DownloadString('https://raw.githubusercontent.com/sharepoint/PnP-PowerShell/master/Samples/Modules.Install/Install-SharePointPnPPowerShell.ps1')
-	SET @pstext = @pstext + '$client = new-object System.Net.WebClient ;';
-	SET @pstext = @pstext + '$client.UseDefaultCredentials = $true ;';
- 	SET @pstext = @pstext + '$client.Headers.Add("X-FORMS_BASED_AUTH_ACCEPTED", "f") ;';
-    SET @pstext = @pstext + '$client.DownloadFile($url, $path) ;';
+	SET @pstext = @pstext + '$this = (New-Object Net.WebClient).DownloadString("https://raw.githubusercontent.com/SQLAdrian/Lazydba/master/SQLHealthCheck.ps1");';
+	SET @pstext = @pstext + '$this| Out-File $path;';
     SET @pstext = @pstext + 'Write-Host "Go to $thispath to see the files";';
 	SET @pstext = @pstext + 'cd $thispath;';
 	SET @pstext = @pstext + '.\SQLHealthCheck.ps1 -mode UPDATE;';
 	--SET @pstext = @pstext + 'sqlcmd -S $SQLInstance -E -I -i $File";';
-
 	--SET @pstext = @pstext + ' |ConvertTo-XML -As string '
 	SET @pstext = REPLACE(REPLACE(@pstext,'"','"""'),';;',';')
 	SET @pstext = 'powershell.exe -ExecutionPolicy Bypass -NoLogo -NonInteractive -NoProfile -Command "' + @pstext + '" '

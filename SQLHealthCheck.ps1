@@ -58,52 +58,6 @@ $Hack  = $Hack.ToUpper();
 $currentpath = $pwd
 $PushToDatabase = $False
 
-#Extract Scripts.zip file containing all out working bits
-$MostRecentScriptFile = Get-ChildItem *"Resources.zip" | Sort-Object Name -descending | Select-Object -First 1
-if($MostRecentScriptFile)
-{
-	$shell_app = new-object -com shell.application
-	$zip_file = $shell_app.namespace((Get-Location).Path + "\" + $MostRecentScriptFile.Name)
-	$destination = $shell_app.namespace((Get-Location).Path)
-	$destination.Copyhere($zip_file.items(), 0x14)
-}
-else
-{
-	if($Mode -ne "AUTO")
-	{
-		Write-Host "Let us update the support files.." -Foregroundcolor "magenta"
-		Write-Host "Let's try to download them." -Foregroundcolor "magenta"
-		$url = "https://github.com/SQLAdrian/Lazydba/raw/master/Resources.zip"
-		$storageDir = $pwd
-		try
-		{
-			$webclient = New-Object System.Net.WebClient
-			
-			$arr = $url -split ""
-			[array]::Reverse($arr)
-			$url2 = $arr -join ''
-			$file = $url.Substring($url.Length - $url2.IndexOf("/"))
-			$file = "$storageDir\$file"
-			$webclient.DownloadFile($url,$file)
-			
-		}
-		catch
-		{
-		
-		}
-		$MostRecentScriptFile = Get-ChildItem *"Resources.zip" | Sort-Object Name -descending | Select-Object -First 1
-		if(!($MostRecentScriptFile))
-		{
-			Write-Host "Could not download. Exiting"
-			exit
-		}
-		$shell_app = new-object -com shell.application
-		$zip_file = $shell_app.namespace((Get-Location).Path + "\" + $MostRecentScriptFile.Name)
-		$destination = $shell_app.namespace((Get-Location).Path)
-		$destination.Copyhere($zip_file.items(), 0x14)
-	}
-}
-
 
 #Test for runas administrator, thanks Ben https://blogs.msdn.microsoft.com/virtual_pc_guy/2010/09/23/a-self-elevating-powershell-script/
 
@@ -210,6 +164,15 @@ if($downloadsplease)
 #	$obj_c | Add-Member -MemberType NoteProperty -Name URL -Value "https://codeload.github.com/olahallengren/sql-server-maintenance-solution/zip/master" 
 #	$obj_c | Add-Member -MemberType NoteProperty -Name SaveAsName -Value "sql-server-maintenance-solution.zip" 
 #	$urls += $obj_c;
+
+#	$obj_c = New-Object System.Object; 
+#	$obj_c | Add-Member -MemberType NoteProperty -Name URL -Value "https://github.com/SQLAdrian/Lazydba/raw/master/Resources.zip" 
+#	$obj_c | Add-Member -MemberType NoteProperty -Name SaveAsName -Value "Resources.zip" 
+#	$urls += $obj_c;
+
+
+
+
 
 
 	$storageDir = $pwd

@@ -227,6 +227,7 @@ else
 #01.2 Loop all intances
 foreach($RunningInstance in $SQLInstances)
 {
+	Write-Host "$RunningInstance" -Foregroundcolor Grey
 	try
 	{
 	$SQLInstance = $RunningInstance.Name.Replace("MSSQL$","")
@@ -251,7 +252,7 @@ foreach($RunningInstance in $SQLInstances)
 	}
 	Catch [system.exception]
 	{
-		Write-Host 'Error during login'
+		Write-Host 'Error during login. This sometimes occurs when SQL server runs using local computer Service accounts. Please check'
         $GetPermission = $true
 	}
 	

@@ -49,6 +49,8 @@ SET TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
 
 /* Before doing anything, you can rather run the current version of this script from the interwebs*/
 use [Master]
+DECLARE @RunBlitz BIT
+SET @RunBlitz = 0
 DECLARE @pstext VARCHAR(8000)
 DECLARE @RunUpdatedVersion INT /*Valid values, 0, 1, 99*/
  /*Only modify this following line if you want recursive pain. ! it should read "SET @RunUpdatedVersion = ?" where ? is the option */
@@ -101,10 +103,14 @@ END
 
 EXEC master.[dbo].[sqlsteward] @TopQueries = 50, @FTECost  = 60000, @ShowQueryPlan = 1, @PrepForExport = 1
 
-EXEC [dbo].[sp_Blitz] @CheckUserDatabaseObjects = 1 ,@CheckProcedureCache = 1 ,@OutputType = 'TABLE' ,@OutputProcedureCache = 0 ,@CheckProcedureCacheFilter = NULL,@CheckServerInfo = 1;
+IF @RunBlitz = 1
+BEGIN
+	EXEC dbo.sp_BlitzFirst @ExpertMode = 1;
 
-EXEC [dbo].[sp_BlitzIndex] @Mode = 4, @SkipStatistics = 0, @GetAllDatabases = 1, @OutputServerName = 1, @OutputDatabaseName = 1;
+	EXEC [dbo].[sp_Blitz] @CheckUserDatabaseObjects = 1 ,@CheckProcedureCache = 1 ,@OutputType = 'TABLE' ,@OutputProcedureCache = 0 ,@CheckProcedureCacheFilter = NULL,@CheckServerInfo = 1;
 
+	EXEC [dbo].[sp_BlitzIndex] @Mode = 4, @SkipStatistics = 0, @GetAllDatabases = 1, @OutputServerName = 1, @OutputDatabaseName = 1;
+END
 
 
 

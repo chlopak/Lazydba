@@ -181,35 +181,35 @@ if($downloadsplease)
     $obj_c | Add-Member -MemberType NoteProperty -Name SaveAsName -Value "sp_BlitzFirst.sql" 
 	$urls += $obj_c;
 
-    $obj_c = New-Object System.Object; 
+	$obj_c = New-Object System.Object; 
 	$obj_c | Add-Member -MemberType NoteProperty -Name URL -Value "https://raw.githubusercontent.com/BrentOzarULTD/SQL-Server-First-Responder-Kit/dev/sp_BlitzIndex.sql" 
 	$obj_c | Add-Member -MemberType NoteProperty -Name SaveAsName -Value "sp_BlitzIndex.sql" 
 	$urls += $obj_c;
-
-    $obj_c = New-Object System.Object; 
+	
+	$obj_c = New-Object System.Object; 
 	$obj_c | Add-Member -MemberType NoteProperty -Name URL -Value "https://raw.githubusercontent.com/Microsoft/tigertoolbox/master/BPCheck/Check_BP_Servers.sql" 
 	$obj_c | Add-Member -MemberType NoteProperty -Name SaveAsName -Value "Check_BP_Servers.sql" 
 	$urls += $obj_c;
-
-    $obj_c = New-Object System.Object; 
-	$obj_c | Add-Member -MemberType NoteProperty -Name URL -Value "https://raw.githubusercontent.com/olahallengren/sql-server-maintenance-solution/master/MaintenanceSolution.sql"
-	$obj_c | Add-Member -MemberType NoteProperty -Name SaveAsName -Value "MaintenanceSolution.sql" 
-	$urls += $obj_c;
-
-   #$obj_c = New-Object System.Object; 
-	#$obj_c | Add-Member -MemberType NoteProperty -Name URL -Value "https://codeload.github.com/ktaranov/sqlserver-kit/zip/master" 
-   #$obj_c | Add-Member -MemberType NoteProperty -Name SaveAsName -Value "sqlserver-kit.zip" 
-	#$urls += $obj_c;
-   #
-	#$obj_c = New-Object System.Object;
-	#$obj_c | Add-Member -MemberType NoteProperty -Name URL -Value "https://codeload.github.com/BrentOzarULTD/SQL-Server-First-Responder-Kit/zip/dev" 
-	#$obj_c | Add-Member -MemberType NoteProperty -Name SaveAsName -Value "SQL-Server-First-Responder-Kit.zip" 
-	#$urls += $obj_c;
-   #
-   #$obj_c = New-Object System.Object; 
-	#$obj_c | Add-Member -MemberType NoteProperty -Name URL -Value "https://codeload.github.com/olahallengren/sql-server-maintenance-solution/zip/master" 
-   #$obj_c | Add-Member -MemberType NoteProperty -Name SaveAsName -Value "sql-server-maintenance-solution.zip" 
-	#$urls += $obj_c;
+#	
+#	$obj_c = New-Object System.Object; 
+#	$obj_c | Add-Member -MemberType NoteProperty -Name URL -Value "https://raw.githubusercontent.com/olahallengren/sql-server-maintenance-solution/master/MaintenanceSolution.sql"
+#	$obj_c | Add-Member -MemberType NoteProperty -Name SaveAsName -Value "MaintenanceSolution.sql" 
+#	$urls += $obj_c;
+#	
+#	$obj_c = New-Object System.Object; 
+#	$obj_c | Add-Member -MemberType NoteProperty -Name URL -Value "https://codeload.github.com/ktaranov/sqlserver-kit/zip/master" 
+#	$obj_c | Add-Member -MemberType NoteProperty -Name SaveAsName -Value "sqlserver-kit.zip" 
+#	$urls += $obj_c;
+#	
+#	$obj_c = New-Object System.Object;
+#	$obj_c | Add-Member -MemberType NoteProperty -Name URL -Value "https://codeload.github.com/BrentOzarULTD/SQL-Server-First-Responder-Kit/zip/dev" 
+#	$obj_c | Add-Member -MemberType NoteProperty -Name SaveAsName -Value "SQL-Server-First-Responder-Kit.zip" 
+#	$urls += $obj_c;
+#	
+#	$obj_c = New-Object System.Object; 
+#	$obj_c | Add-Member -MemberType NoteProperty -Name URL -Value "https://codeload.github.com/olahallengren/sql-server-maintenance-solution/zip/master" 
+#	$obj_c | Add-Member -MemberType NoteProperty -Name SaveAsName -Value "sql-server-maintenance-solution.zip" 
+#	$urls += $obj_c;
 
 
 	$storageDir = $pwd

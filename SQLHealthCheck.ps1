@@ -222,7 +222,7 @@ else
 {
 	$timestampforfile =  (get-date).ToString('yyyy_MM_dd_HH_mm');
 	$outfolder = "$currentpath\$timestampforfile"
-	New-Item -ErrorAction Ignore -ItemType directory -Path $outfolder | Out-Null
+	New-Item -ErrorAction SilentlyContinue -ItemType directory -Path $outfolder | Out-Null
 }
 #01.2 Loop all intances
 foreach($RunningInstance in $SQLInstances)

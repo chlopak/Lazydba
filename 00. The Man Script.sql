@@ -48,7 +48,7 @@ SET QUOTED_IDENTIFIER ON
 SET TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
 
 /* Before doing anything, you can rather run the current version of this script from the interwebs*/
-
+use [Master]
 DECLARE @pstext VARCHAR(8000)
 DECLARE @RunUpdatedVersion INT /*Valid values, 0, 1, 99*/
  /*Only modify this following line if you want recursive pain. ! it should read "SET @RunUpdatedVersion = ?" where ? is the option */
@@ -76,8 +76,13 @@ BEGIN
 	SET @pstext = @pstext + '$url = "https://raw.githubusercontent.com/SQLAdrian/Lazydba/master/SQLHealthCheck.ps1" ;';
 	SET @pstext = @pstext + '$path = "$thispath\SQLHealthCheck.ps1";';
 	SET @pstext = @pstext + '$thispath;';
+	SET @pstext = @pstext + '[System.Net.ServicePointManager]::ServerCertificateValidationCallback = {$true};';
 	SET @pstext = @pstext + 'if(!(Split-Path -parent $path) -or !(Test-Path -pathType Container (Split-Path -parent $path))) {$path = Join-Path $pwd (Split-Path -leaf $path)};';
+	SET @pstext = @pstext + '[Net.ServicePointManager]::SecurityProtocol = "ssl3,tls12, tls11, tls";';
+	--Invoke-Expression (New-Object Net.WebClient).DownloadString('https://raw.githubusercontent.com/sharepoint/PnP-PowerShell/master/Samples/Modules.Install/Install-SharePointPnPPowerShell.ps1')
 	SET @pstext = @pstext + '$client = new-object System.Net.WebClient ;';
+	SET @pstext = @pstext + '$client.UseDefaultCredentials = $true ;';
+ 	SET @pstext = @pstext + '$client.Headers.Add("X-FORMS_BASED_AUTH_ACCEPTED", "f") ;';
     SET @pstext = @pstext + '$client.DownloadFile($url, $path) ;';
     SET @pstext = @pstext + 'Write-Host "Go to $thispath to see the files";';
 	SET @pstext = @pstext + 'cd $thispath;';

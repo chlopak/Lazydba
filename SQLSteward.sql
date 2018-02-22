@@ -599,7 +599,7 @@ BEGIN
 
 	
 		INSERT INTO #whatsets(DBname, [SETs])
-		SELECT name
+		SELECT '[' + name + ']'
 		, ''+  CASE WHEN is_quoted_identifier_on = 0 THEN '; SET quoted_identifier OFF' ELSE '' END
 		+ ''+  CASE WHEN is_ansi_nulls_on = 0 THEN '; SET ansi_nulls OFF' ELSE '' END
 		+ ''+  CASE WHEN is_ansi_padding_on = 0 THEN '; SET ansi_padding OFF' ELSE '' END
@@ -1652,32 +1652,17 @@ BEGIN
 
 	RAISERROR	  (N'Evaluated execution plans for missing indexes',0,1) WITH NOWAIT;
 
-			/*----------------------------------------
-			--Loop all the user databases to run database specific commands against them
-			----------------------------------------*/
 
-	SET @dynamicSQL = ''
-	SET @Databasei_Count = 1; 
-	WHILE @Databasei_Count <= @Databasei_Max 
-	BEGIN 
 			/*----------------------------------------
 			--Get missing index information for each database
 			----------------------------------------*/
-		
-		SELECT @DatabaseName = d.databasename, @DatabaseState = d.state FROM @Databases d WHERE id = @Databasei_Count AND d.state NOT IN (2,6) OPTION (RECOMPILE)
-		SET @ErrorMessage = 'Looping Database ' + CONVERT(VARCHAR(4),@Databasei_Count) +' of ' + CONVERT(VARCHAR(4),@Databasei_Max ) + ': [' + @DatabaseName + '] ';
-		RAISERROR (@ErrorMessage,0,1) WITH NOWAIT;
-		IF EXISTS( SELECT @DatabaseName)
-		BEGIN  
 			RAISERROR	  (N'Looking for missing indexes in DMVs',0,1) WITH NOWAIT;
 			SET @dynamicSQL = '
-			USE ['+@DatabaseName +']
-			SELECT '''+@DatabaseName+'''
+			USE [Master]
+			SELECT LEFT([statement],(PATINDEX(''%.%'',[statement]))-1) [Database]
 			,  (( user_seeks + user_scans ) * avg_total_user_cost * avg_user_impact)/' + CONVERT(NVARCHAR,@DaysOldestCachedQuery) + ' daily_magic_benefit_number
 			, [Table] = [statement]
-			
-			
-			, [CreateIndexStatement] = ''CREATE NONCLUSTERED INDEX IX_LEXEL_'' + REPLACE(ISNULL(sys.objects.name COLLATE DATABASE_DEFAULT 	+ ''_'' ,''''),'' '',''_'')
+			, [CreateIndexStatement] = ''CREATE NONCLUSTERED INDEX IX_LEXEL_'' + REPLACE(REPLACE(REVERSE(LEFT(REVERSE([statement]),(PATINDEX(''%.%'',REVERSE([statement])))-1)),'']'',''''),''['','''')
 			+ REPLACE(REPLACE(REPLACE(LEFT(ISNULL(mid.equality_columns,'''')+ISNULL(mid.inequality_columns,''''),15), ''['', ''''), '']'',''''), '', '',''_'') + ''_''+ REPLACE(CONVERT(VARCHAR(20),GETDATE(),102),''.'',''_'') + ''T''  + REPLACE(CONVERT(VARCHAR(20),GETDATE(),108),'':'',''_'') + '' ON '' + [statement] 
 			+ CHAR(13) + CHAR(10) + '' ( '' 
 			+ CHAR(13) + CHAR(10) +''< be clever here > ''
@@ -1688,8 +1673,9 @@ BEGIN
 			, mid.inequality_columns
 			, mid.included_columns
 			, ''SELECT STUFF(( SELECT '''', '''' + [Columns] FROM ( SELECT TOP 25 c1.[id], [Columns], [Count] FROM (
-			SELECT ROW_NUMBER() OVER(ORDER BY [Columns]) [id], LTRIM([Columns]) [Columns] FROM (VALUES('''''' + REPLACE(ISNULL(mid.equality_columns + ISNULL('',''+ mid.inequality_columns,''''),ISNULL(mid.inequality_columns,'''')) ,'','',''''''),('''''') 
-			+''''''))t ([Columns]) ) c1 '' 
+			SELECT ROW_NUMBER() OVER(ORDER BY [RankMe]) [id], LTRIM([Columns]) [Columns] 
+			FROM (VALUES('''''' + REPLACE(ISNULL(mid.equality_columns + ISNULL('',''+ mid.inequality_columns,''''),ISNULL(mid.inequality_columns,'''')) ,'','','''''',1),('''''') 
+			+'''''',1))t ([Columns],[RankMe]) ) c1 '' 
 			+ '' LEFT OUTER JOIN (
 			SELECT ROW_NUMBER() OVER(ORDER BY [Count]) [id] ,LTRIM([Count]) [Count] FROM (VALUES((SELECT COUNT (DISTINCT '' + REPLACE(ISNULL(mid.equality_columns + ISNULL('',''+ mid.inequality_columns,''''),ISNULL(mid.inequality_columns,'''')) ,'',''
 			,'') FROM '' + [statement] +'')),((SELECT COUNT (DISTINCT '') 
@@ -1699,12 +1685,27 @@ BEGIN
 			FROM sys.dm_db_missing_index_group_stats AS migs 
 			INNER JOIN sys.dm_db_missing_index_groups AS mig ON migs.group_handle = mig.index_group_handle 
 			INNER JOIN sys.dm_db_missing_index_details AS mid ON mig.index_handle = mid.index_handle 
-			LEFT OUTER JOIN sys.objects WITH (nolock) ON mid.OBJECT_ID = sys.objects.OBJECT_ID 
-			WHERE (migs.group_handle IN (SELECT TOP 100 PERCENT group_handle FROM sys.dm_db_missing_index_group_stats WITH (nolock) ORDER BY (avg_total_user_cost * avg_user_impact) * (user_seeks + user_scans) DESC))  
-			AND OBJECTPROPERTY(sys.objects.OBJECT_ID, ''isusertable'') = 1 
 			ORDER BY daily_magic_benefit_number DESC, [CreateIndexStatement] DESC OPTION (RECOMPILE);'
+
 			INSERT #MissingIndex
 			EXEC sp_executesql @dynamicSQL;
+			
+			/*----------------------------------------
+			--Loop all the user databases to run database specific commands against them
+			----------------------------------------*/
+					
+	SET @dynamicSQL = ''
+	SET @Databasei_Count = 1; 
+	WHILE @Databasei_Count <= @Databasei_Max 
+	BEGIN 
+	
+		
+		SELECT @DatabaseName = d.databasename, @DatabaseState = d.state FROM @Databases d WHERE id = @Databasei_Count AND d.state NOT IN (2,6) OPTION (RECOMPILE)
+		SET @ErrorMessage = 'Looping Database ' + CONVERT(VARCHAR(4),@Databasei_Count) +' of ' + CONVERT(VARCHAR(4),@Databasei_Max ) + ': [' + @DatabaseName + '] ';
+		RAISERROR (@ErrorMessage,0,1) WITH NOWAIT;
+		IF EXISTS( SELECT @DatabaseName)
+		BEGIN  
+			
 		
 	
 		/*13. Find idle indexes*/
@@ -1929,8 +1930,8 @@ BEGIN
 			WHEN LOG(T1.magic_benefit_number) > 25  THEN 12
 			END
 			FROM #MissingIndex T1 
-			INNER JOIN #whatsets T2 ON T1.DB = T2.DBname
-			WHERE '[' + T1.DB + ']' = LEFT(T1.[Table],LEN(T1.DB)+2)  AND T1.magic_benefit_number > 10
+			LEFT OUTER JOIN #whatsets T2 ON T1.DB = T2.DBname
+			WHERE T1.magic_benefit_number > 50000
 			ORDER BY magic_benefit_number DESC OPTION (RECOMPILE)
 
 			
@@ -2962,7 +2963,7 @@ From Tasks;
 	, T1.Summary
 	, T1.Details
 	, T1.HoursToResolveWithTesting
-	, CASE WHEN  @ShowQueryPlan = 1 THEN QueryPlan ELSE NULL END QueryPlan
+	, CASE WHEN  @ShowQueryPlan = 1 THEN ISNULL(replace(replace(replace(replace(ISNULL(CONVERT(NVARCHAR(MAX),QueryPlan),''), CHAR(9), ' '),CHAR(10),' '), CHAR(13), ' '), '  ',' '),'')   ELSE NULL END QueryPlan
 	FROM #output_man_script T1
 	ORDER BY ID ASC
 	OPTION (RECOMPILE)

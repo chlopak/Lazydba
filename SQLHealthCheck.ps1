@@ -227,7 +227,7 @@ else
 #01.2 Loop all intances
 foreach($RunningInstance in $SQLInstances)
 {
-	Write-Host "$RunningInstance" -Foregroundcolor  "Grey"
+	Write-Host "$RunningInstance" -Foregroundcolor "Yellow"
 	try
 	{
 	$SQLInstance = $RunningInstance.Name.Replace("MSSQL$","")

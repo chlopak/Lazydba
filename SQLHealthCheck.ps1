@@ -421,14 +421,22 @@ foreach($RunningInstance in $SQLInstances)
 		#!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 		ForEach ($FileName in $FileNames)
 		{
-			if(!($ExludedFiles -contains $File))
+		
+			if(!($ExludedFiles -contains $File) -AND ($ExludedFiles -contains $File))
 			{
 				#If the file is not in the excluded list then run it
 				$File = $Folder.Path + "\" + $FileName
 				$OutFile = $File + ".csv"
 				#sqlcmd -S $SQLInstance -E -i $File -s "~" -o $OutFile
-				sqlcmd -S $SQLInstance -E -I -i $File
-				Write-Host "Updating SP: $FileName";
+				
+				foreach( $url in $urls)
+					{
+						if($url.SaveAsName -eq $FileName)
+						{
+							Write-Host "Updating SP: $FileName";
+							sqlcmd -S $SQLInstance -E -I -i $File
+						}
+					}
 			}
 		}
 		#!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!

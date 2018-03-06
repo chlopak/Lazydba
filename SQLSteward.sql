@@ -2915,7 +2915,7 @@ From Tasks;
 	+ 'GB/day; ' + CONVERT(VARCHAR(15),(CASE WHEN t_execution_count = 1 THEN 1 ELSE CONVERT(MONEY,t_execution_count)/@DaysOldestCachedQuery END) ) 
 	+ ' executions/day; ' +  CONVERT(VARCHAR(15),(CONVERT(MONEY,t_avg_worker_time_S)))
 	+ ' s(avg) *[DailyGB; DailyExecutions; AverageTime(s)]' [Summary]
-	, '/*' + [Type] + '; '+ t_obj_name + ' [' + t_db_name + '].[' + schema_name + '] > */' + t_SQLStatement [Details] 
+	, '/*' + [Type] + '; '+ ISNULL(t_obj_name,'') + ' [' + ISNULL(t_db_name,'') + '].[' + ISNULL(schema_name,'') + '] > */' + ISNULL(t_SQLStatement,'') [Details] 
 	FROM (
 
 	SELECT TOP 10 ID

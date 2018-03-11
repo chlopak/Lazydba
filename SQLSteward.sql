@@ -2553,7 +2553,7 @@ From Tasks;
 		FROM sys.dm_exec_query_stats s1 
 		CROSS APPLY sys.dm_exec_sql_text(sql_handle) s2 
 		WHERE s2.objectid IS NOT NULL AND db_name(s2.dbid) IS NOT NULL
-		AND (execution_count >= @MinExecutionCount OR (total_worker_time/1000.0) > 10)
+		--AND (execution_count >= @MinExecutionCount OR (total_worker_time/1000.0) > 10)
 		ORDER BY s1.sql_handle; 
 
 		SELECT @grand_total_worker_time = SUM(t_total_worker_time)
@@ -2728,7 +2728,7 @@ From Tasks;
 	from sys.dm_exec_query_stats s1 
 	cross apply sys.dm_exec_sql_text(sql_handle) AS s2 
 	WHERE s2.objectid is null
-	AND (execution_count >= @MinExecutionCount OR (total_worker_time/1000.0) > 10)
+	--AND (execution_count >= @MinExecutionCount OR (total_worker_time/1000.0) > 10)
 	order by s1.sql_handle; 
 
 	SELECT @grand_total_worker_time = SUM(t_total_worker_time) 

@@ -533,8 +533,9 @@ BEGIN
 		ORDER BY Section, [Summary];
 		PRINT N'WARNING! You have SET options that might break stuff on SQL 2005+. DANGER WILL ROBINSON';
 		
-		INSERT #output_man_script (SectionID, Section,Summary, Details) SELECT 1,'!!! WARNING - MAY BREAK UPGRADE !!!','------','------'
+		INSERT #output_man_script (SectionID, Section,Summary, Details) SELECT 1,'!!! WARNING - MAY BREAK UPGRADE !!!','Database;App/Interface;Driver;User;Host','------'
 		INSERT #output_man_script (SectionID, Section,Summary, Details)
+		
 		SELECT DISTINCT 1
 		, ISNULL(CASE 
 		WHEN T.client_version < 3 THEN '!!! UPGRADE ISSUE !!! Pre SQL 7'
@@ -545,34 +546,30 @@ BEGIN
 		WHEN T.client_version = 7 THEN 'SQL 2012'
 		ELSE 'SQL 2014+'
 		END,'') [Section]
-		, ISNULL(CASE 
-		WHEN T.client_version < 6 THEN 'SQL Stick and clay tablets'
-		WHEN T.client_version = 6 THEN 'SQL 2008'
-		WHEN T.client_version = 7 THEN 'SQL 2012'
-		ELSE 'SQL 2014+'
-		END ,'')
-		+ 'App: [' + ISNULL(T.program_name,'')
-		+ ']; Driver: [' + ISNULL(
+		, '[' + ISNULL(d.name,ISNULL(T.client_interface_name,'')) + ']'
+		+';[' + ISNULL(T.program_name,'')
+		+ ']; [' + ISNULL(
 		CASE SUBSTRING(CAST(C.protocol_version AS BINARY(4)), 1,1)
-		WHEN 0x04 THEN 'Pre-version SQL Server 7.0 - DBLibrary/ ISQL'
-		WHEN 0x70 THEN 'SQL Server 7.0'
-		WHEN 0x71 THEN 'SQL Server 2000'
-		WHEN 0x72 THEN 'SQL Server 2005'
-		WHEN 0x73 THEN 'SQL Server 2008'
-		WHEN 0x74 THEN 'SQL Server 2012/14/16'
+		WHEN 0x04 THEN 'Pre-version SQL 7.0 - DBLibrary/ ISQL'
+		WHEN 0x70 THEN 'SQL 7.0'
+		WHEN 0x71 THEN 'SQL 2000'
+		WHEN 0x72 THEN 'SQL 2005'
+		WHEN 0x73 THEN 'SQL 2008'
+		WHEN 0x74 THEN 'SQL 2012/14/16'
 		ELSE 'Unknown driver'
 		END ,'')
-		+ ']; Interface: '+ ISNULL(T.client_interface_name,'')
-		+ '; User: ' + ISNULL(T.nt_user_name,'')
-		+ '; Host: ' + ISNULL(T.host_name,'') [Summary]
+		+ '];[' + ISNULL(T.nt_user_name,ISNULL(T.original_login_name,''))
+		+ '][;' + ISNULL(T.host_name,'') + ']' [Summary]
 		, '' + ISNULL(CASE WHEN quoted_identifier = 0 THEN ';quoted_identifier = OFF' ELSE '' END
 		+ ''+  CASE WHEN ansi_nulls = 0 THEN ';ansi_nulls = OFF' ELSE '' END
 		+ ''+  CASE WHEN ansi_padding = 0 THEN ';ansi_padding = OFF' ELSE '' END
 		+ ''+  CASE WHEN ansi_warnings = 0 THEN ';ansi_warnings = OFF' ELSE '' END
 		+ ''+  CASE WHEN arithabort = 0 THEN ';arithabort = OFF' ELSE '' END
 		+ ''+  CASE WHEN concat_null_yields_null = 0 THEN ';concat_null_yields_null = OFF' ELSE '' END,'')
+	
 		FROM sys.dm_exec_sessions T
 		INNER JOIN sys.dm_exec_connections C ON C.session_id = T.session_id
+		INNER JOIN sys.databases d ON T.database_id = d.database_id
 		WHERE ( 1 = 1
 		--AND LEN(ISNULL(T.nt_user_name,0)) > 1
 		AND T.program_name NOT LIKE 'SQLAgent - %' )

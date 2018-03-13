@@ -535,7 +535,6 @@ BEGIN
 		
 		INSERT #output_man_script (SectionID, Section,Summary, Details) SELECT 1,'!!! WARNING - MAY BREAK UPGRADE !!!','Database;App/Interface;Driver;User;Host','------'
 		INSERT #output_man_script (SectionID, Section,Summary, Details)
-		
 		SELECT DISTINCT 1
 		, ISNULL(CASE 
 		WHEN T.client_version < 3 THEN '!!! UPGRADE ISSUE !!! Pre SQL 7'
@@ -546,8 +545,8 @@ BEGIN
 		WHEN T.client_version = 7 THEN 'SQL 2012'
 		ELSE 'SQL 2014+'
 		END,'') [Section]
-		, '[' + ISNULL(d.name,ISNULL(T.client_interface_name,'')) + ']'
-		+';[' + ISNULL(T.program_name,'')
+		, '[' + ISNULL(d.name ,'')+ ']'
+		+';[' + ISNULL(T.program_name,ISNULL(T.client_interface_name,''))
 		+ ']; [' + ISNULL(
 		CASE SUBSTRING(CAST(C.protocol_version AS BINARY(4)), 1,1)
 		WHEN 0x04 THEN 'Pre-version SQL 7.0 - DBLibrary/ ISQL'
@@ -560,19 +559,19 @@ BEGIN
 		END ,'')
 		+ '];[' + ISNULL(T.nt_user_name,ISNULL(T.original_login_name,''))
 		+ '][;' + ISNULL(T.host_name,'') + ']' [Summary]
-		, '' + ISNULL(CASE WHEN quoted_identifier = 0 THEN ';quoted_identifier = OFF' ELSE '' END
-		+ ''+  CASE WHEN ansi_nulls = 0 THEN ';ansi_nulls = OFF' ELSE '' END
-		+ ''+  CASE WHEN ansi_padding = 0 THEN ';ansi_padding = OFF' ELSE '' END
-		+ ''+  CASE WHEN ansi_warnings = 0 THEN ';ansi_warnings = OFF' ELSE '' END
-		+ ''+  CASE WHEN arithabort = 0 THEN ';arithabort = OFF' ELSE '' END
-		+ ''+  CASE WHEN concat_null_yields_null = 0 THEN ';concat_null_yields_null = OFF' ELSE '' END,'')
-	
+		, '' + ISNULL(CASE WHEN T.quoted_identifier = 0 THEN ';quoted_identifier = OFF' ELSE '' END
+		+ ''+  CASE WHEN T.ansi_nulls = 0 THEN ';ansi_nulls = OFF' ELSE '' END
+		+ ''+  CASE WHEN T.ansi_padding = 0 THEN ';ansi_padding = OFF' ELSE '' END
+		+ ''+  CASE WHEN T.ansi_warnings = 0 THEN ';ansi_warnings = OFF' ELSE '' END
+		+ ''+  CASE WHEN T.arithabort = 0 THEN ';arithabort = OFF' ELSE '' END
+		+ ''+  CASE WHEN T.concat_null_yields_null = 0 THEN ';concat_null_yields_null = OFF' ELSE '' END,'')
 		FROM sys.dm_exec_sessions T
 		INNER JOIN sys.dm_exec_connections C ON C.session_id = T.session_id
-		INNER JOIN sys.databases d ON T.database_id = d.database_id
-		WHERE ( 1 = 1
+		LEFT OUTER JOIN  sys.dm_exec_requests r on T.session_id = r.session_id
+		LEFT OUTER JOIN sys.databases d ON r.database_id = d.database_id
+		WHERE ( 1 = 1)
 		--AND LEN(ISNULL(T.nt_user_name,0)) > 1
-		AND T.program_name NOT LIKE 'SQLAgent - %' )
+		AND T.program_name NOT LIKE 'SQLAgent - %' 
 		AND T.client_version < 6 
 		ORDER BY Section, [Summary];
 		PRINT N'WARNING! Upgrades may break clients connecting in';

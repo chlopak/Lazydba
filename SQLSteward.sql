@@ -310,6 +310,7 @@ BEGIN
 	CREATE TABLE #whatsets
 				(
 				  DBname VARCHAR(500)
+				,  [compatibility_level] VARCHAR(10)
 				, [SETs] VARCHAR(500)
 				)	
 
@@ -479,7 +480,7 @@ BEGIN
 	) AND LEN(T.nt_user_name) > 1 AND T.program_name NOT LIKE 'SQLAgent - %' ) OR T.client_version < 6)
 	BEGIN
 
-		INSERT #output_man_script (SectionID, Section,Summary, Details) SELECT 1,'!!! WARNING - CHECK SET !!!','------','------'
+		INSERT #output_man_script (SectionID, Section,Summary, Details) SELECT 1,'!!! WARNING - CHECK SET - MAKES INDEXES BREAK THINGS!!!','------','------'
 		INSERT #output_man_script (SectionID, Section,Summary, Details)
 		SELECT DISTINCT 1
 		, ISNULL(CASE 
@@ -594,8 +595,10 @@ BEGIN
 	BEGIN
 
 	
-		INSERT INTO #whatsets(DBname, [SETs])
+		INSERT INTO #whatsets(DBname, [compatibility_level],[SETs])
+		
 		SELECT '[' + name + ']'
+		, [compatibility_level]
 		, ''+  CASE WHEN is_quoted_identifier_on = 0 THEN '; SET quoted_identifier OFF' ELSE '' END
 		+ ''+  CASE WHEN is_ansi_nulls_on = 0 THEN '; SET ansi_nulls OFF' ELSE '' END
 		+ ''+  CASE WHEN is_ansi_padding_on = 0 THEN '; SET ansi_padding OFF' ELSE '' END
@@ -611,21 +614,22 @@ BEGIN
 		OR is_concat_null_yields_null_on= 0
 		OR is_numeric_roundabort_on= 1
 		OR is_quoted_identifier_on= 0
+		OR [compatibility_level] < 110
 	END
 
 	IF EXISTS(SELECT * FROM #whatsets)
 	BEGIN
-		INSERT #output_man_script (SectionID, Section,Summary, Details) SELECT 1,'!!! WARNING - POTENTIALLY BREAKING DEFAULT DB SETTINGS!!!','------','------'
+		INSERT #output_man_script (SectionID, Section,Summary, Details) SELECT 1,'!!! WARNING - POTENTIALLY BREAKING DB SETTINGS!!!','------','------'
 		INSERT #output_man_script (SectionID, Section,Summary)
 		SELECT 1
-		, DBname
+		, DBname + ' [' + CONVERT(VARCHAR(10), [compatibility_level])  + ']'
 		, [SETs]
 		FROM #whatsets
 		ORDER BY DBname DESC
 
 	END
 
-	RAISERROR (N'Done checking for possible breaking SQL 2000 things',0,1) WITH NOWAIT;
+	RAISERROR (N'Done checking compatability levels and sets for database things',0,1) WITH NOWAIT;
 			/*----------------------------------------
 			--Benchmark, not for anything else besides getting a number
 			----------------------------------------*/
@@ -1035,7 +1039,8 @@ BEGIN
 			/*----------------------------------------
 			--Look for backups and recovery model information
 			----------------------------------------*/
-	INSERT #output_man_script (SectionID, Section,Summary, Details) SELECT 9, 'DATABASE - RPO in minutes and RTO in 15 min slices','------','MM:SS'
+	INSERT #output_man_script (SectionID, Section,Summary, Details) SELECT 9, 'DATABASE - RPO in minutes and RTO in 15 min slices'
+	,'DB;Compat;recovery_model;Best RTO HH:MM:SS ;Last Full;Last TL','MM:SS'
 	INSERT #output_man_script (SectionID, Section,Summary, HoursToResolveWithTesting )
 	SELECT 9,  REPLICATE('|',DATEDIFF(MINUTE,CASE 
 	WHEN recovery_model = 'FULL' AND x.[Last Transaction Log] > x.[Last Full] THEN x.[Last Transaction Log]
@@ -1045,16 +1050,13 @@ BEGIN
 	WHEN recovery_model = 'FULL' AND x.[Last Transaction Log] > x.[Last Full] THEN x.[Last Transaction Log]
 	WHEN recovery_model = 'FULL' AND x.[Last Transaction Log] <= x.[Last Full] THEN [Last Full]
 	ELSE x.[Last Full] END, GETDATE())) + ' minutes'
-	, ('DB:'
-	+ database_name
-	+ ' - '
-	+ recovery_model
-	+ ';Last Full:'
-	+ CONVERT(VARCHAR(20),x.[Last Full],120)
-	+ '; Last TL:'
-	+ CONVERT(VARCHAR(20),x.[Last Transaction Log],120)
-	+';Best RTO:'
-	+ LEFT(CONVERT(VARCHAR(20),DATEADD(SECOND,x.Timetaken,0) ,114),8)
+	, (database_name
+	+ '; ' +CONVERT(VARCHAR(10),[compatibility_level])
+	+ '; ' + recovery_model
+	+ '; ' + LEFT(CONVERT(VARCHAR(20),DATEADD(SECOND,x.Timetaken,0) ,114),8)
+	+ '; ' + CONVERT(VARCHAR(20),x.[Last Full],120)
+	+ '; ' + CONVERT(VARCHAR(20),x.[Last Transaction Log],120)
+
 	)
 	, 
 	CONVERT(VARCHAR(20),CASE 
@@ -1084,18 +1086,17 @@ BEGIN
 
 	FROM 
 	(
-		SELECT  database_name, bs.recovery_model
+		SELECT  database_name, dbs.[compatibility_level] , bs.recovery_model
 		, MAX(DATEDIFF(SECOND,backup_start_date, backup_finish_date)) 'Timetaken'
 		, MAX(CASE WHEN  type = 'D' THEN backup_finish_date ELSE 0 END) 'Last Full'   
 		, MIN(CASE WHEN  type = 'D' THEN backup_start_date ELSE 0 END) 'First Full'             
 		, MAX(CASE WHEN  type = 'L' THEN backup_finish_date ELSE 0 END) 'Last Transaction Log'  
 		, MIN(CASE WHEN  type = 'L' THEN backup_start_date ELSE 0 END) 'First Transaction Log'  
 		FROM  msdb.sys.databases dbs
-		LEFT OUTER JOIN  msdb.dbo.backupset bs ON dbs.name = bs.database_name  
+		LEFT OUTER JOIN  msdb.dbo.backupset bs WITH (NOLOCK)  ON dbs.name = bs.database_name  
 		AND dbs.recovery_model_desc COLLATE DATABASE_DEFAULT = bs.recovery_model COLLATE DATABASE_DEFAULT
 		WHERE type IN ('D', 'L')
-		AND database_name NOT IN ('model','master','msdb')
-		GROUP BY database_name, bs.recovery_model
+		GROUP BY database_name, dbs.[compatibility_level],bs.recovery_model
 	) x 
 	ORDER BY [Last Full] ASC
 	OPTION (RECOMPILE);
@@ -1903,7 +1904,7 @@ BEGIN
 		INSERT #output_man_script (SectionID, Section,Summary, Details) SELECT 18, 'MISSING INDEXES - !Benefit > 1mm!','------','------'
 		INSERT #output_man_script (SectionID, Section,Summary ,Details,HoursToResolveWithTesting )
 			SELECT 18, REPLICATE('|',ROUND(LOG(T1.magic_benefit_number),0)) + ' ' + CONVERT(VARCHAR(20),LOG(T1.magic_benefit_number)) + '' 
-			+ CASE WHEN LOG(T1.magic_benefit_number) < 10 THEN ' \(",)/'
+			+ CASE WHEN LOG(T1.magic_benefit_number) < 10 THEN ' '
 			WHEN LOG(T1.magic_benefit_number) >= 10 AND LOG(T1.magic_benefit_number) < 12 THEN ' (".)/'
 			WHEN LOG(T1.magic_benefit_number) >= 12 AND LOG(T1.magic_benefit_number) < 14 THEN ' ("o)'
 			WHEN LOG(T1.magic_benefit_number) >= 14 AND LOG(T1.magic_benefit_number) < 16 THEN ' (**.)'

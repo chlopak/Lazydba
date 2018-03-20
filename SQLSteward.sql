@@ -348,12 +348,6 @@ BEGIN
 
 
 
-
-
-
-
-
-
 	--SELECT CONVERT(MONEY,LEFT(Character_Value,3)) FROM @msversion WHERE Name = 'WindowsVersion'
 
 	DECLARE @value VARCHAR(64);
@@ -369,6 +363,18 @@ BEGIN
 
 	IF CONVERT(DECIMAL(3,1), @WindowsVersion) >= 6.0
 	BEGIN
+	
+		DECLARE @cpu_name VARCHAR(150)
+		DECLARE @cpu_ghz VARCHAR(50)
+
+										
+		EXEC master.sys.xp_regread @rootkey = 'HKEY_LOCAL_MACHINE',
+		@key = 'HARDWARE\DESCRIPTION\System\CentralProcessor\0',
+		@value_name = 'ProcessorNameString',
+		@value = @cpu_name OUTPUT;
+										
+		SELECT @cpu_ghz = RIGHT(@cpu_name, LEN(@cpu_name)- PATINDEX('%@ %', @cpu_name) -1)
+								
 		EXEC master..xp_regread 
 		@rootkey = 'HKEY_LOCAL_MACHINE',
 		@key = @key,
@@ -803,14 +809,17 @@ BEGIN
 	FROM sys.dm_os_sys_info 
 	) OPTION (RECOMPILE)
 
-	INSERT #output_man_script (SectionID, Section,Summary, Details) SELECT 4,'CPU - Average CPU usage of SQL process as % of total CPU usage','------','------'
+	INSERT #output_man_script (SectionID, Section,Summary, Details) SELECT 4,'CPU - Average CPU usage of SQL process as % of total CPU usage','Speed; Avg CPU; CPU Idle; Other; From; To; Full Details','------'
 	INSERT #output_man_script (SectionID, Section,Summary, HoursToResolveWithTesting  )
 	SELECT 4, '['+REPLICATE('|', AVG(CONVERT(MONEY,SQLProcessUtilization))) + REPLICATE('''',100-(AVG(CONVERT(MONEY,SQLProcessUtilization)) )) +']'
-	,('Avg CPU:'+ CONVERT(VARCHAR(20),AVG(SQLProcessUtilization))
-	+'%; CPU Idle:' + CONVERT(VARCHAR(20),AVG(SystemIdle))
-	+ '%; Other:'+ CONVERT(VARCHAR(20), 100 - AVG(SQLProcessUtilization) - AVG(SystemIdle))
-	+'%; From:'+ CONVERT(VARCHAR(20), MIN([Event_Time]),120)
-	+'; To:' + CONVERT(VARCHAR(20), MAX([Event_Time]),120)) 
+	,(@cpu_ghz
+	+';'+ CONVERT(VARCHAR(20),AVG(SQLProcessUtilization))
+	+'%;' + CONVERT(VARCHAR(20),AVG(SystemIdle))
+	+'%; '+ CONVERT(VARCHAR(20), 100 - AVG(SQLProcessUtilization) - AVG(SystemIdle))
+	+'%;'+ CONVERT(VARCHAR(20), MIN([Event_Time]),120)
+	+';' + CONVERT(VARCHAR(20), MAX([Event_Time]),120)
+	+';' + @cpu_name
+	) 
 	, CASE WHEN AVG(SQLProcessUtilization) > 50 THEN 2 ELSE 0 END 
 	FROM 
 	(

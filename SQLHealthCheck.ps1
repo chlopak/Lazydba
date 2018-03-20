@@ -434,7 +434,7 @@ foreach($RunningInstance in $SQLInstances)
 						if($url.SaveAsName -eq $FileName)
 						{
 							Write-Host "Updating SP: $FileName";
-							sqlcmd -S $SQLInstance -E -I -i $File
+							sqlcmd -S $SQLInstance -E -d "master" -I -i $File
 						}
 					}
 			}

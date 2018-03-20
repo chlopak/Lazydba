@@ -48,14 +48,20 @@ Param(
    [string]$Mode
    , [Parameter(Mandatory=$false,Position=2)]
    [string]$Hack
+   , [Parameter(Mandatory=$false,Position=3)]
+   [string]$DownloadPath
 )
 
 $Mode  = $Mode.ToUpper();
 $Hack  = $Hack.ToUpper();
+if(!($DownloadPath))
+{
+ $DownloadPath = pwd
+}
 
 #00. Configuration stuff for this scripts
 #Add-Type -assembly "system.io.compression.filesystem"
-$currentpath = $pwd
+$currentpath = $DownloadPath
 $PushToDatabase = $False
 
 

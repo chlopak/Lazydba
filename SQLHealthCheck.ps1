@@ -64,6 +64,12 @@ if(!($DownloadPath))
 $currentpath = $DownloadPath
 $PushToDatabase = $False
 
+if("neednewfolder" -eq "not now")
+{
+	$timestampforfile =  (get-date).ToString('yyyy_MM_dd_HH_mm');
+	$outfolder = "$currentpath\$timestampforfile"
+	New-Item -ErrorAction SilentlyContinue -ItemType directory -Path $outfolder | Out-Null
+}
 
 #Test for runas administrator, thanks Ben https://blogs.msdn.microsoft.com/virtual_pc_guy/2010/09/23/a-self-elevating-powershell-script/
 
@@ -226,9 +232,7 @@ if($SQLInstances.Count -eq 0)
 }
 else
 {
-	$timestampforfile =  (get-date).ToString('yyyy_MM_dd_HH_mm');
-	$outfolder = "$currentpath\$timestampforfile"
-	New-Item -ErrorAction SilentlyContinue -ItemType directory -Path $outfolder | Out-Null
+
 }
 #01.2 Loop all intances
 foreach($RunningInstance in $SQLInstances)

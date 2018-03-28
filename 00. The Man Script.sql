@@ -74,7 +74,7 @@ BEGIN
 	SET @pstext = @pstext + '$notthispath = "C:\Windows\system32"; ';
 	SET @pstext = @pstext + ' ; ';
 	SET @pstext = @pstext + 'if($thispath.Path -eq $notthispath)';
-	SET @pstext = @pstext + '{$thispath = $env:TEMP};';
+	SET @pstext = @pstext + '{$thispath = "C:\Temp"};'; /*{$thispath = $env:TEMP};*/
 	SET @pstext = @pstext + '$url = "https://raw.githubusercontent.com/SQLAdrian/Lazydba/master/SQLHealthCheck.ps1" ;';
 	SET @pstext = @pstext + '$path = "$thispath\SQLHealthCheck.ps1";';
 	SET @pstext = @pstext + '$thispath;';
@@ -91,10 +91,20 @@ BEGIN
 	EXEC xp_cmdshell @pstext
 END
 
-
+/* need some tools
+	SET @pstext = '$thispath = pwd;Install-Module dbatools -Force' ; --
+	SET @pstext = @pstext + 'Update-DbaTools;' ;
+	SET @pstext = @pstext + 'Copy-DbaLogin -Source SUN -Destination MOON;' ;
+	SET @pstext = @pstext + 'Copy-DbaCredential -Source SUN -Destination MOON;' ;
+	SET @pstext = @pstext + 'Copy-DbaAgentProxyAccount -Source SUN -Destination MOON;' ;
+	SET @pstext = @pstext + 'Copy-DbaAgentJob -Source SUN -Destination MOON;' ;
+	SET @pstext = @pstext + 'Copy-DbaLinkedServer -Source SUN -Destination MOON ;' ;
+	SET @pstext = @pstext + 'Copy-DbaSsisCatalog -Source SUN -Destination MOON ;' ;
+*/
 
 
 EXEC master.[dbo].[sqlsteward] @TopQueries = 50, @FTECost  = 60000, @ShowQueryPlan = 1, @PrepForExport = 1
+EXEC [dbo].[sp_Blitz] @CheckUserDatabaseObjects = 1 ,@CheckProcedureCache = 1 ,@OutputType = 'TABLE' ,@OutputProcedureCache = 0 ,@CheckProcedureCacheFilter = NULL,@CheckServerInfo = 1;
 
 IF @RunBlitz = 1
 BEGIN

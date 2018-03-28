@@ -427,7 +427,28 @@ BEGIN
 		INSERT #output_man_script (SectionID,Section,Summary)
 		SELECT 0,'Instant File Initialization is OFF','Consider enabling this. Speeds up database data file growth. '
 	END
+
 	
+	/* To DO .. use powershell
+	
+	SELECT @@VERSION
+
+
+Microsoft%20SQL%20Server%202012%20Enterprise%20Service%20Pack%201
+
+(SP1) - 11.0.3339.0 (X64) 
+	Jan 14 2013 19:02:10 
+	Copyright (c) Microsoft Corporation
+	Enterprise Edition (64-bit) on Windows NT 6.2 <X64> (Build 9200: ) (Hypervisor)
+
+
+https://support.microsoft.com/api/lifecycle/GetProductsLifecycle?query=%7B%22names%22:%5B%22Microsoft%2520SQL%2520Server%25202012%2520Service%2520Pack%22%5D,%22years%22:%220%22,%22gdsId%22:0,%22export%22:true%7D
+
+*/
+
+
+
+
 			/*----------------------------------------
 			--Check for high worker thread usage
 			----------------------------------------*/
@@ -1397,49 +1418,84 @@ BEGIN
 	FROM sys.dm_os_wait_stats
 	WHERE 
 	[wait_type] NOT IN (
-			N'BROKER_EVENTHANDLER', N'BROKER_RECEIVE_WAITFOR',
-			N'BROKER_TASK_STOP', N'BROKER_TO_FLUSH',
-			N'BROKER_TRANSMITTER', N'CHECKPOINT_QUEUE',
-			N'CHKPT', N'CLR_AUTO_EVENT',
-			N'CLR_MANUAL_EVENT', N'CLR_SEMAPHORE',
+	/*[Last updated: November 27, 2017]*/
+		-- These wait types are almost 100% never a problem and so they are
+        -- filtered out to avoid them skewing the results. Click on the URL
+        -- for more information.
+        N'BROKER_EVENTHANDLER', -- https://www.sqlskills.com/help/waits/BROKER_EVENTHANDLER
+        N'BROKER_RECEIVE_WAITFOR', -- https://www.sqlskills.com/help/waits/BROKER_RECEIVE_WAITFOR
+        N'BROKER_TASK_STOP', -- https://www.sqlskills.com/help/waits/BROKER_TASK_STOP
+        N'BROKER_TO_FLUSH', -- https://www.sqlskills.com/help/waits/BROKER_TO_FLUSH
+        N'BROKER_TRANSMITTER', -- https://www.sqlskills.com/help/waits/BROKER_TRANSMITTER
+        N'CHECKPOINT_QUEUE', -- https://www.sqlskills.com/help/waits/CHECKPOINT_QUEUE
+        N'CHKPT', -- https://www.sqlskills.com/help/waits/CHKPT
+        N'CLR_AUTO_EVENT', -- https://www.sqlskills.com/help/waits/CLR_AUTO_EVENT
+        N'CLR_MANUAL_EVENT', -- https://www.sqlskills.com/help/waits/CLR_MANUAL_EVENT
+        N'CLR_SEMAPHORE', -- https://www.sqlskills.com/help/waits/CLR_SEMAPHORE
  
-			-- Maybe uncomment these four if you have mirroring issues
-	 --       N'DBMIRROR_DBM_EVENT', N'DBMIRROR_EVENTS_QUEUE',
-	 --       N'DBMIRROR_WORKER_QUEUE', N'DBMIRRORING_CMD',
-
-			N'DIRTY_PAGE_POLL', N'DISPATCHER_QUEUE_SEMAPHORE',
-			N'EXECSYNC', N'FSAGENT',
-			N'FT_IFTS_SCHEDULER_IDLE_WAIT', N'FT_IFTSHC_MUTEX',
+        -- Maybe comment these four out if you have mirroring issues
+        N'DBMIRROR_DBM_EVENT', -- https://www.sqlskills.com/help/waits/DBMIRROR_DBM_EVENT
+        N'DBMIRROR_EVENTS_QUEUE', -- https://www.sqlskills.com/help/waits/DBMIRROR_EVENTS_QUEUE
+        N'DBMIRROR_WORKER_QUEUE', -- https://www.sqlskills.com/help/waits/DBMIRROR_WORKER_QUEUE
+        N'DBMIRRORING_CMD', -- https://www.sqlskills.com/help/waits/DBMIRRORING_CMD
  
-			-- Maybe uncomment these six if you have AG issues
-			N'HADR_CLUSAPI_CALL', N'HADR_FILESTREAM_IOMGR_IOCOMPLETION',
-			N'HADR_LOGCAPTURE_WAIT', N'HADR_NOTIFICATION_DEQUEUE',
-			N'HADR_TIMER_TASK', N'HADR_WORK_QUEUE',
+        N'DIRTY_PAGE_POLL', -- https://www.sqlskills.com/help/waits/DIRTY_PAGE_POLL
+        N'DISPATCHER_QUEUE_SEMAPHORE', -- https://www.sqlskills.com/help/waits/DISPATCHER_QUEUE_SEMAPHORE
+        N'EXECSYNC', -- https://www.sqlskills.com/help/waits/EXECSYNC
+        N'FSAGENT', -- https://www.sqlskills.com/help/waits/FSAGENT
+        N'FT_IFTS_SCHEDULER_IDLE_WAIT', -- https://www.sqlskills.com/help/waits/FT_IFTS_SCHEDULER_IDLE_WAIT
+        N'FT_IFTSHC_MUTEX', -- https://www.sqlskills.com/help/waits/FT_IFTSHC_MUTEX
  
-			N'KSOURCE_WAKEUP', N'LAZYWRITER_SLEEP',
-			N'LOGMGR_QUEUE', N'MEMORY_ALLOCATION_EXT',
-			N'ONDEMAND_TASK_QUEUE',
-			N'PREEMPTIVE_XE_GETTARGETSTATE',
-			N'PWAIT_ALL_COMPONENTS_INITIALIZED',
-			N'PWAIT_DIRECTLOGCONSUMER_GETNEXT',
-			N'QDS_PERSIST_TASK_MAIN_LOOP_SLEEP', N'QDS_ASYNC_QUEUE',
-			N'QDS_CLEANUP_STALE_QUERIES_TASK_MAIN_LOOP_SLEEP',
-			N'QDS_SHUTDOWN_QUEUE', N'REDO_THREAD_PENDING_WORK',
-			N'REQUEST_FOR_DEADLOCK_SEARCH', N'RESOURCE_QUEUE',
-			N'SERVER_IDLE_CHECK', N'SLEEP_BPOOL_FLUSH',
-			N'SLEEP_DBSTARTUP', N'SLEEP_DCOMSTARTUP',
-			N'SLEEP_MASTERDBREADY', N'SLEEP_MASTERMDREADY',
-			N'SLEEP_MASTERUPGRADED', N'SLEEP_MSDBSTARTUP',
-			N'SLEEP_SYSTEMTASK', N'SLEEP_TASK',
-			N'SLEEP_TEMPDBSTARTUP', N'SNI_HTTP_ACCEPT',
-			N'SP_SERVER_DIAGNOSTICS_SLEEP', N'SQLTRACE_BUFFER_FLUSH',
-			N'SQLTRACE_INCREMENTAL_FLUSH_SLEEP',
-			N'SQLTRACE_WAIT_ENTRIES', N'WAIT_FOR_RESULTS',
-			N'WAITFOR', N'WAITFOR_TASKSHUTDOWN',
-			N'WAIT_XTP_RECOVERY',
-			N'WAIT_XTP_HOST_WAIT', N'WAIT_XTP_OFFLINE_CKPT_NEW_LOG',
-			N'WAIT_XTP_CKPT_CLOSE', N'XE_DISPATCHER_JOIN',
-			N'XE_DISPATCHER_WAIT', N'XE_TIMER_EVENT')
+        -- Maybe comment these six out if you have AG issues
+        N'HADR_CLUSAPI_CALL', -- https://www.sqlskills.com/help/waits/HADR_CLUSAPI_CALL
+        N'HADR_FILESTREAM_IOMGR_IOCOMPLETION', -- https://www.sqlskills.com/help/waits/HADR_FILESTREAM_IOMGR_IOCOMPLETION
+        N'HADR_LOGCAPTURE_WAIT', -- https://www.sqlskills.com/help/waits/HADR_LOGCAPTURE_WAIT
+        N'HADR_NOTIFICATION_DEQUEUE', -- https://www.sqlskills.com/help/waits/HADR_NOTIFICATION_DEQUEUE
+        N'HADR_TIMER_TASK', -- https://www.sqlskills.com/help/waits/HADR_TIMER_TASK
+        N'HADR_WORK_QUEUE', -- https://www.sqlskills.com/help/waits/HADR_WORK_QUEUE
+ 
+        N'KSOURCE_WAKEUP', -- https://www.sqlskills.com/help/waits/KSOURCE_WAKEUP
+        N'LAZYWRITER_SLEEP', -- https://www.sqlskills.com/help/waits/LAZYWRITER_SLEEP
+        N'LOGMGR_QUEUE', -- https://www.sqlskills.com/help/waits/LOGMGR_QUEUE
+        N'MEMORY_ALLOCATION_EXT', -- https://www.sqlskills.com/help/waits/MEMORY_ALLOCATION_EXT
+        N'ONDEMAND_TASK_QUEUE', -- https://www.sqlskills.com/help/waits/ONDEMAND_TASK_QUEUE
+        N'PREEMPTIVE_XE_GETTARGETSTATE', -- https://www.sqlskills.com/help/waits/PREEMPTIVE_XE_GETTARGETSTATE
+        N'PWAIT_ALL_COMPONENTS_INITIALIZED', -- https://www.sqlskills.com/help/waits/PWAIT_ALL_COMPONENTS_INITIALIZED
+        N'PWAIT_DIRECTLOGCONSUMER_GETNEXT', -- https://www.sqlskills.com/help/waits/PWAIT_DIRECTLOGCONSUMER_GETNEXT
+        N'QDS_PERSIST_TASK_MAIN_LOOP_SLEEP', -- https://www.sqlskills.com/help/waits/QDS_PERSIST_TASK_MAIN_LOOP_SLEEP
+        N'QDS_ASYNC_QUEUE', -- https://www.sqlskills.com/help/waits/QDS_ASYNC_QUEUE
+        N'QDS_CLEANUP_STALE_QUERIES_TASK_MAIN_LOOP_SLEEP',
+            -- https://www.sqlskills.com/help/waits/QDS_CLEANUP_STALE_QUERIES_TASK_MAIN_LOOP_SLEEP
+        N'QDS_SHUTDOWN_QUEUE', -- https://www.sqlskills.com/help/waits/QDS_SHUTDOWN_QUEUE
+        N'REDO_THREAD_PENDING_WORK', -- https://www.sqlskills.com/help/waits/REDO_THREAD_PENDING_WORK
+        N'REQUEST_FOR_DEADLOCK_SEARCH', -- https://www.sqlskills.com/help/waits/REQUEST_FOR_DEADLOCK_SEARCH
+        N'RESOURCE_QUEUE', -- https://www.sqlskills.com/help/waits/RESOURCE_QUEUE
+        N'SERVER_IDLE_CHECK', -- https://www.sqlskills.com/help/waits/SERVER_IDLE_CHECK
+        N'SLEEP_BPOOL_FLUSH', -- https://www.sqlskills.com/help/waits/SLEEP_BPOOL_FLUSH
+        N'SLEEP_DBSTARTUP', -- https://www.sqlskills.com/help/waits/SLEEP_DBSTARTUP
+        N'SLEEP_DCOMSTARTUP', -- https://www.sqlskills.com/help/waits/SLEEP_DCOMSTARTUP
+        N'SLEEP_MASTERDBREADY', -- https://www.sqlskills.com/help/waits/SLEEP_MASTERDBREADY
+        N'SLEEP_MASTERMDREADY', -- https://www.sqlskills.com/help/waits/SLEEP_MASTERMDREADY
+        N'SLEEP_MASTERUPGRADED', -- https://www.sqlskills.com/help/waits/SLEEP_MASTERUPGRADED
+        N'SLEEP_MSDBSTARTUP', -- https://www.sqlskills.com/help/waits/SLEEP_MSDBSTARTUP
+        N'SLEEP_SYSTEMTASK', -- https://www.sqlskills.com/help/waits/SLEEP_SYSTEMTASK
+        N'SLEEP_TASK', -- https://www.sqlskills.com/help/waits/SLEEP_TASK
+        N'SLEEP_TEMPDBSTARTUP', -- https://www.sqlskills.com/help/waits/SLEEP_TEMPDBSTARTUP
+        N'SNI_HTTP_ACCEPT', -- https://www.sqlskills.com/help/waits/SNI_HTTP_ACCEPT
+        N'SP_SERVER_DIAGNOSTICS_SLEEP', -- https://www.sqlskills.com/help/waits/SP_SERVER_DIAGNOSTICS_SLEEP
+        N'SQLTRACE_BUFFER_FLUSH', -- https://www.sqlskills.com/help/waits/SQLTRACE_BUFFER_FLUSH
+        N'SQLTRACE_INCREMENTAL_FLUSH_SLEEP', -- https://www.sqlskills.com/help/waits/SQLTRACE_INCREMENTAL_FLUSH_SLEEP
+        N'SQLTRACE_WAIT_ENTRIES', -- https://www.sqlskills.com/help/waits/SQLTRACE_WAIT_ENTRIES
+        N'WAIT_FOR_RESULTS', -- https://www.sqlskills.com/help/waits/WAIT_FOR_RESULTS
+        N'WAITFOR', -- https://www.sqlskills.com/help/waits/WAITFOR
+        N'WAITFOR_TASKSHUTDOWN', -- https://www.sqlskills.com/help/waits/WAITFOR_TASKSHUTDOWN
+        N'WAIT_XTP_RECOVERY', -- https://www.sqlskills.com/help/waits/WAIT_XTP_RECOVERY
+        N'WAIT_XTP_HOST_WAIT', -- https://www.sqlskills.com/help/waits/WAIT_XTP_HOST_WAIT
+        N'WAIT_XTP_OFFLINE_CKPT_NEW_LOG', -- https://www.sqlskills.com/help/waits/WAIT_XTP_OFFLINE_CKPT_NEW_LOG
+        N'WAIT_XTP_CKPT_CLOSE', -- https://www.sqlskills.com/help/waits/WAIT_XTP_CKPT_CLOSE
+        N'XE_DISPATCHER_JOIN', -- https://www.sqlskills.com/help/waits/XE_DISPATCHER_JOIN
+        N'XE_DISPATCHER_WAIT', -- https://www.sqlskills.com/help/waits/XE_DISPATCHER_WAIT
+        N'XE_TIMER_EVENT' -- https://www.sqlskills.com/help/waits/XE_TIMER_EVENT
 		AND [waiting_tasks_count] > 0
 	ORDER BY [wait_time_ms] DESC
 	OPTION (RECOMPILE)

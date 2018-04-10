@@ -82,7 +82,7 @@ BEGIN
 	SET @pstext = @pstext + '$this| Out-File $path;';
     SET @pstext = @pstext + 'Write-Host "Go to $thispath to see the files";';
 	SET @pstext = @pstext + 'cd $thispath;';
-	SET @pstext = @pstext + '.\SQLHealthCheck.ps1 -mode UPDATE;';
+	SET @pstext = @pstext + '.\SQLHealthCheck.ps1 -mode UPDATE -DownloadPath $thispath;';
 	--SET @pstext = @pstext + 'sqlcmd -S $SQLInstance -E -I -i $File";';
 	--SET @pstext = @pstext + ' |ConvertTo-XML -As string '
 	SET @pstext = REPLACE(REPLACE(@pstext,'"','"""'),';;',';')
@@ -91,16 +91,6 @@ BEGIN
 	EXEC xp_cmdshell @pstext
 END
 
-/* need some tools
-	SET @pstext = '$thispath = pwd;Install-Module dbatools -Force' ; --
-	SET @pstext = @pstext + 'Update-DbaTools;' ;
-	SET @pstext = @pstext + 'Copy-DbaLogin -Source SUN -Destination MOON;' ;
-	SET @pstext = @pstext + 'Copy-DbaCredential -Source SUN -Destination MOON;' ;
-	SET @pstext = @pstext + 'Copy-DbaAgentProxyAccount -Source SUN -Destination MOON;' ;
-	SET @pstext = @pstext + 'Copy-DbaAgentJob -Source SUN -Destination MOON;' ;
-	SET @pstext = @pstext + 'Copy-DbaLinkedServer -Source SUN -Destination MOON ;' ;
-	SET @pstext = @pstext + 'Copy-DbaSsisCatalog -Source SUN -Destination MOON ;' ;
-*/
 
 	EXEC master.[dbo].[sqlsteward] 
 		@TopQueries = 50
@@ -136,7 +126,17 @@ END
 
 
 
-
+/*Do Do follows*/
+/* need some tools
+	SET @pstext = '$thispath = pwd;Install-Module dbatools -Force' ; --
+	SET @pstext = @pstext + 'Update-DbaTools;' ;
+	SET @pstext = @pstext + 'Copy-DbaLogin -Source SUN -Destination MOON;' ;
+	SET @pstext = @pstext + 'Copy-DbaCredential -Source SUN -Destination MOON;' ;
+	SET @pstext = @pstext + 'Copy-DbaAgentProxyAccount -Source SUN -Destination MOON;' ;
+	SET @pstext = @pstext + 'Copy-DbaAgentJob -Source SUN -Destination MOON;' ;
+	SET @pstext = @pstext + 'Copy-DbaLinkedServer -Source SUN -Destination MOON ;' ;
+	SET @pstext = @pstext + 'Copy-DbaSsisCatalog -Source SUN -Destination MOON ;' ;
+*/
 /*
 USE [msdb]
 GO

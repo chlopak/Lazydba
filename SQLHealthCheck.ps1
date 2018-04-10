@@ -192,9 +192,9 @@ if($downloadsplease)
 	foreach( $url in $urls)
 	{
 		$file =$url.SaveAsName
-		$file = ("$storageDir\$file").Replace("%20"," ");
+		$file = ("$storageDir\$file").Replace("%20"," ").Replace("\\","\");
 		#Clean up old file
-		if(Test-path $file) {Remove-item $file }
+		#if(Test-path $file) {Remove-item $file -Force}
 
 		Write-Host "Downloading update for $file"
 		$webclient.DownloadFile($url.URL,$file)

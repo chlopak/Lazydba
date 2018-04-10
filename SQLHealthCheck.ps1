@@ -194,7 +194,17 @@ if($downloadsplease)
 		$file =$url.SaveAsName
 		$file = ("$storageDir\$file").Replace("%20"," ").Replace("\\","\");
 		#Clean up old file
-		#if(Test-path $file) {Remove-item $file -Force}
+		if(Test-path $file) {
+			
+			#Remove-item $file -Force
+		}
+		else{
+			Out-File -FilePath $file 
+			$Acl = Get-Acl "$file"
+			$Ar = New-Object  system.security.accesscontrol.filesystemaccessrule("everyone","FullControl","Allow")
+			$Acl.SetAccessRule($Ar)
+			Set-Acl "$file" $Acl
+		}
 
 		Write-Host "Downloading update for $file"
 		$webclient.DownloadFile($url.URL,$file)
@@ -210,6 +220,7 @@ if($downloadsplease)
 	}
     $webclient.Dispose()
 }
+
 
 
 #$SQLWriter_ImagePath =  "C:\Program Files\Microsoft SQL Server\90\Shared\sqlwriter.exe"

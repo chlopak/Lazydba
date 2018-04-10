@@ -187,7 +187,7 @@ if($downloadsplease)
 
 
 
-	$storageDir = $pwd
+	$storageDir =  $DownloadPath;
 	$webclient = New-Object System.Net.WebClient
 	foreach( $url in $urls)
 	{
@@ -336,16 +336,6 @@ foreach($RunningInstance in $SQLInstances)
 	
 }
 
-if( $mode -ne "UPDATE")
-{
-	$outputzipdestination = "$currentpath" + "\" + $SQLnameforfile + "_" + $timestampforfile + ".zip"
-	If(Test-path $outputzipdestination) {Remove-item $outputzipdestination}
-	if($outfolder)
-	{
-		[io.compression.zipfile]::CreateFromDirectory($outfolder , $outputzipdestination) 
-		If(Test-path $outfolder) {Remove-item $outfolder -Recurse}
-	}
-}
 Write-Host "I think we are done here for now." -Foregroundcolor Green
 
 #	#Run SQLCMD for each file

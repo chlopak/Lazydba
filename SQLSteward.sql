@@ -1,3 +1,4 @@
+PRINT 'SQL server evaluation script @ 10 April 2018 adrian.sullivan@lexel.co.nz ' + NCHAR(65021)
 IF NOT EXISTS (SELECT * FROM sys.objects WHERE type = 'P' AND OBJECT_ID = OBJECT_ID('dbo.sqlsteward'))
    exec('CREATE PROCEDURE [dbo].[sqlsteward] AS BEGIN SET NOCOUNT ON; END')
 GO
@@ -9,6 +10,11 @@ ALTER PROCEDURE [dbo].[sqlsteward]
 , @MinExecutionCount TINYINT  = 1 /*This can go to 0 for more details, but first attend to often used queries. Run this with 0 before making any big decisions*/
 , @ShowQueryPlan TINYINT  = 1 /*Set to 1 to include the Query plan in the output*/
 , @PrepForExport TINYINT  = 1 /*When the intent of this script is to use this for some type of hocus-pocus magic metrics, set this to 1*/
+, @Export VARCHAR(10) = 'Table' /*Screen / Table*/
+, @ExportSchema VARCHAR(10)  = 'dbo'
+, @ExportDBName  VARCHAR(20) = 'master'
+, @ExportTableName VARCHAR(20) = 'sqlsteward_output'
+, @ExportCleanupDays INT = 180
 WITH RECOMPILE
 AS
 BEGIN
@@ -48,40 +54,53 @@ BEGIN
 	--------
 	Do stuff
 */
-	DECLARE @matrixthis BIGINT 
-	SET @matrixthis = 0
-	DECLARE @matrixthisline INT 
-	SET @matrixthisline= 0
-	DECLARE @sliverofawesome NVARCHAR(200)
-	DECLARE @thischar NVARCHAR(1)
+	DECLARE @matrixthis BIGINT ;
+	SET @matrixthis = 0;
+	DECLARE @matrixthisline INT ;
+	SET @matrixthisline= 0;
+	DECLARE @sliverofawesome NVARCHAR(200);
+	DECLARE @thischar NVARCHAR(1);
 
 	WHILE @matrixthis < 25
 	BEGIN
-		SET @matrixthisline = 0
-		SET @sliverofawesome = ''
+		SET @matrixthisline = 0;
+		SET @sliverofawesome = '';
 
 		WHILE @matrixthisline < 90
 		BEGIN
-			SET @thischar = NCHAR(CONVERT(INT,RAND() *  1252))
+			SET @thischar = NCHAR(CONVERT(INT,RAND() *  1252));
 			IF LEN(@thischar) = 0 OR RAND() < 0.8
-				SET @thischar = ' '
-			SET @sliverofawesome = @sliverofawesome + @thischar
-			SET @matrixthisline = @matrixthisline + 1
+				SET @thischar = ' ';
+			SET @sliverofawesome = @sliverofawesome + @thischar;
+			SET @matrixthisline = @matrixthisline + 1;
 		END
-		PRINT (@sliverofawesome) 
-		SET @matrixthis = @matrixthis + 1
-		WAITFOR DELAY '00:00:00.011'
+		PRINT (@sliverofawesome) ;
+		SET @matrixthis = @matrixthis + 1;
+		WAITFOR DELAY '00:00:00.011';
 	END
+	DECLARE @Result_Good NVARCHAR(2);
+	DECLARE @Result_NA NVARCHAR(2);
+	DECLARE @Result_Warning NVARCHAR(2);
+	DECLARE @Result_Bad NVARCHAR(2);
+	DECLARE @Result_ReallyBad NVARCHAR(2);
+	DECLARE @Result_YourServerIsDead NVARCHAR(2);
 
-	DECLARE @c_r AS CHAR(2) 
-	SET @c_r = CHAR(13) + CHAR(10)
+	SET @Result_Good =  NCHAR(10004);
+	SET @Result_NA = NCHAR(9940);
+	SET @Result_Warning = NCHAR(9888);
+	SET @Result_Bad = NCHAR(10006);
+	SET @Result_ReallyBad = NCHAR(9763);
+	SET @Result_YourServerIsDead = NCHAR(9760);
+
+	DECLARE @c_r AS CHAR(2) ;
+	SET @c_r = CHAR(13) + CHAR(10);
 	PRINT REPLACE(REPLACE(REPLACE(REPLACE(''+@c_r+'	[   ....,,:,,....[[ '+@c_r+'[   ,???????????????????:.[   '+@c_r+'[ .???????????????????????,[  '+@c_r+'s=.  ??????&&&$$??????. .7s '+@c_r+'s~$.. ...&&&&&... ..7Is '+@c_r+'s~&$+....[[.. =7777Is '+@c_r+'s~&&&&$$7I777Iv7777I[[  '+@c_r+'s~&&&&$$Ivv7777Is '+@c_r+'s~&$$... &$.. ..777?..vIs '+@c_r+'s~&$  &$$.  77?..77? .vIs '+@c_r+'s~&$. .&$  $I77=  7? .vIs '+@c_r+'s~&$$,. .$$ .$I777..7? .vIs '+@c_r+'s~&&$+ .$  ~I77. ,7? .vIs '+@c_r+'s~&$..   & ...  :77? ....77Is '+@c_r+'s~&&&&$$I:..vv7I[ '+@c_r+'s~&&&&$$Ivv7777Is '+@c_r+'s.&&&&$$Ivv7777.s '+@c_r+'s .&&&&$Ivv777.['+@c_r+'[ ..7&&&Ivv..[  '+@c_r+'[[........... ..[[ ', '&','$$$'),'v', '77777'),'[', '      '),'s','    ')
 	PRINT REPLACE(REPLACE(REPLACE(REPLACE('.m__._. _.m__. __.__.. _.. _. _. m_..m_.m_. m.m_.m__ '+@c_r+' |_. _|g g| m_g.\/.i / \. | \ g / mi/ m|i_ \ |_ _|i_ \|_. _|'+@c_r+'. g.g_gi_i g\/g./ _ \.i\g \m \ g..g_) g g |_) g i'+@c_r+'. g.i_.|gm.g.g / m \ g\.im) |gm i_ <.g i__/.g.'+@c_r+'. |_i|_g_||m__g_i|_|/_/. \_\|_| \_gm_/.\m_||_| \_\|m||_i. |_i'+@c_r+'........................................... ','i','|.'),'.','  '),'m','___'),'g','| |')
-	PRINT @License
-	PRINT 'Let''s begin..'
+	PRINT @License;
+	PRINT 'Let''s begin..';
 	
 	/*@ShowWarnings = 0 > Only show warnings */
-	DECLARE @ShowWarnings TINYINT 
+	DECLARE @ShowWarnings TINYINT ;
 	SET @ShowWarnings = 0;
 
 	/*Script wide variables*/
@@ -90,14 +109,17 @@ BEGIN
 	SET @dynamicSQL = N'';
 	DECLARE @MinWorkerTime BIGINT ;
 	SET @MinWorkerTime = 0.01 * 1000000;
-	DECLARE @MinChangePercentage MONEY
-	DECLARE @DoStatistics MONEY
-	SET @MinChangePercentage = 0.1
+	DECLARE @MinChangePercentage MONEY;
+	DECLARE @DoStatistics MONEY;
+	SET @MinChangePercentage = 0.1;
 	DECLARE @LeftText INT ;
-	SET @LeftText = 50; /*The lengh that you want to trim text*/
+	SET @LeftText = 50; /*The length that you want to trim text*/
 	DECLARE @oldestcachequery DATETIME ;
 	DECLARE @minutesSinceRestart BIGINT;
 	DECLARE @CPUcount INT;
+	DECLARE @CPUsocketcount INT;
+	DECLARE @CPUHyperthreadratio MONEY;
+	DECLARE @TempDBFileCount INT;
 	DECLARE @lastservericerestart DATETIME;
 	DECLARE @DaysOldestCachedQuery MONEY;
 	DECLARE @CachevsUpdate MONEY;
@@ -111,9 +133,9 @@ BEGIN
 	DECLARE @EndTest DATETIME; 
 	DECLARE @ThisistoStandardisemyOperatorCostMate INT;
 	DECLARE @secondsperoperator FLOAT;
-	DECLARE @totalMemoryGB MONEY, @AvailableMemoryGB MONEY, @UsedMemory MONEY
-	DECLARE @VMType VARCHAR(200), @ServerType VARCHAR(20)
-	DECLARE @MaxRamServer INT,@SQLVersion tinyint
+	DECLARE @totalMemoryGB MONEY, @AvailableMemoryGB MONEY, @UsedMemory MONEY;
+	DECLARE @VMType VARCHAR(200), @ServerType VARCHAR(20);
+	DECLARE @MaxRamServer INT,@SQLVersion tinyint;
 	DECLARE @ts BIGINT;
 	DECLARE @Kb FLOAT;
 	DECLARE @PageSize FLOAT;
@@ -250,6 +272,7 @@ BEGIN
 				, SectionID TINYINT NULL
 				, Section VARCHAR(MAX)
 				, Summary VARCHAR(MAX)
+				, Severity NVARCHAR(5)
 				, Details VARCHAR(MAX)
 				, QueryPlan XML NULL
 				, HoursToResolveWithTesting MONEY NULL
@@ -299,7 +322,7 @@ BEGIN
 				DROP TABLE #notrust
 	CREATE TABLE #notrust
 				(
-				KeyType VARCHAR(20)
+				  KeyType VARCHAR(20)
 				, Tablename VARCHAR(500)
 				, KeyName VARCHAR(500)
 				, DBCCcommand VARCHAR(2000)
@@ -310,15 +333,35 @@ BEGIN
 	CREATE TABLE #whatsets
 				(
 				  DBname VARCHAR(500)
-				,  [compatibility_level] VARCHAR(10)
+				, [compatibility_level] VARCHAR(10)
 				, [SETs] VARCHAR(500)
 				)	
 
 	IF OBJECT_ID('tempdb..#dbccloginfo') IS NOT NULL
 				DROP TABLE #dbccloginfo
 	CREATE TABLE #dbccloginfo  
-			(id INT IDENTITY(1,1) 
+			(
+				id INT IDENTITY(1,1) 
 			)
+	IF OBJECT_ID('tempdb..#SQLVersionsDump') IS NOT NULL
+				DROP TABLE #SQLVersionsDump		
+	CREATE TABLE #SQLVersionsDump 
+			(
+				  ID INT IDENTITY(0,1)
+				, Output VARCHAR(250)
+			)
+	
+	IF OBJECT_ID('tempdb..#SQLVersions') IS NOT NULL
+				DROP TABLE #SQLVersions
+	CREATE TABLE #SQLVersions 
+			(
+			  Id TINYINT
+			, [Products Released] VARCHAR(250)
+			, [Lifecycle Start Date]  VARCHAR(250)
+			, [Mainstream Support End Date]  VARCHAR(250)
+			, [Extended Support End Date]  VARCHAR(250)
+			, [Service Pack Support End Date]  VARCHAR(250)
+			)		
 
 	IF CONVERT(TINYINT,@SQLVersion) >= 11 -- post-SQL2012 
 	BEGIN
@@ -397,17 +440,42 @@ BEGIN
 		SET @rebuildonline = 'ON'; /*Can also use CAST(SERVERPROPERTY('EngineEdition') AS INT), thanks http://www.brentozar.com/ */
 	END
 
-
+	SELECT @CPUcount = cpu_count 
+	, @CPUsocketcount = [cpu_count] / [hyperthread_ratio]
+	, @CPUHyperthreadratio = [hyperthread_ratio]
+	FROM sys.dm_os_sys_info;
+		
+	SELECT @TempDBFileCount = COUNT(*)
+	FROM [tempdb].sys.database_files
+		WHERE state = 0 /*Online*/ AND type = 0 /*Rows*/
+		
+	
 	INSERT #output_man_script (SectionID,Section,Summary, Details) SELECT 0,'@' + CONVERT(VARCHAR(20),GETDATE(),120),'------','------'
 	INSERT #output_man_script (SectionID,Section,Summary)
-	SELECT 0,'Domain',DEFAULT_DOMAIN()
-	UNION ALL SELECT 0,'Server', @@SERVERNAME
-	UNION ALL SELECT 0,'User',CURRENT_USER
-	UNION ALL SELECT 0,'Logged in', SYSTEM_USER
-	UNION ALL SELECT 0, 'Power Plan', @PowerPlan
-	UNION ALL SELECT 0, 'Bad CPU balance', '['+REPLICATE('#', CONVERT(MONEY,([cpu_count] / [hyperthread_ratio]))) +'] Sockets ['+REPLICATE('+', CONVERT(MONEY,([cpu_count]))) +'] CPUs'
-			FROM [sys].[dm_os_sys_info] 
-			WHERE 0 = CASE WHEN [hyperthread_ratio] <> cpu_count THEN 0 ELSE 1 END
+		SELECT 0,'Domain',DEFAULT_DOMAIN()
+	INSERT #output_man_script (SectionID,Section,Summary)
+		SELECT 0,'Server', @@SERVERNAME
+	INSERT #output_man_script (SectionID,Section,Summary)
+		SELECT 0,'User',CURRENT_USER
+	INSERT #output_man_script (SectionID,Section,Summary)
+		SELECT 0,'Logged in', SYSTEM_USER
+	INSERT #output_man_script (SectionID,Section,Summary, Severity)
+		SELECT 0, 'Power Plan', @PowerPlan, CASE WHEN @PowerPlan = 'High-Performance' THEN  @Result_Good  ELSE @Result_Warning END
+	IF @CPUHyperthreadratio <> @CPUcount
+	BEGIN 
+		INSERT #output_man_script (SectionID,Section,Summary, Severity)
+		SELECT 0, 'Bad CPU balance', '['+REPLICATE('#', CONVERT(MONEY,(@CPUcount /  @CPUHyperthreadratio))) +'] CPU Sockets ['+REPLICATE('+', CONVERT(MONEY,(@CPUcount))) +'] CPUs', @Result_Warning 
+	END
+	
+	
+	IF @TempDBFileCount > @CPUsocketcount
+	BEGIN
+		INSERT #output_man_script (SectionID,Section,Summary, Severity, Details )
+		SELECT 0,  +'Interesting TempDB file count' 
+		,'['+REPLICATE('#', @CPUsocketcount) +'] CPU Sockets ['+REPLICATE('*', CONVERT(MONEY,(@TempDBFileCount))) +'] TempDB Files'
+		,@Result_Warning, 'Expect slow disk latency on the TempDB files'
+	END
+
 	
 	DECLARE @xp_errorlog TABLE(LogDate DATETIME,  ProcessInfo VARCHAR(250), Text NVARCHAR(500))
 
@@ -418,18 +486,40 @@ BEGIN
 
 	IF EXISTS ( SELECT * FROM @xp_errorlog WHERE [Text] LIKE '%locked pages%')
 	BEGIN
-		INSERT #output_man_script (SectionID,Section,Summary)
-		SELECT 0,'Locked Pages in Memory','Consider changing. This was old best practice, not valid for VMs or post 2008. '
+		INSERT #output_man_script (SectionID,Section,Summary,Severity)
+		SELECT 0,'Locked Pages in Memory','Consider changing. This was old best practice, not valid for VMs or post 2008.',@Result_Warning
 	END
 
 	IF EXISTS ( SELECT * FROM @xp_errorlog WHERE [Text] LIKE '%File Initialization%')
 	BEGIN
-		INSERT #output_man_script (SectionID,Section,Summary)
-		SELECT 0,'Instant File Initialization is OFF','Consider enabling this. Speeds up database data file growth. '
+		INSERT #output_man_script (SectionID,Section,Summary,Severity)
+		SELECT 0,'Instant File Initialization is OFF','Consider enabling this. Speeds up database data file growth.',@Result_Warning
 	END
+			/*----------------------------------------
+			--Check for current service account
+			----------------------------------------*/
+		DECLARE @SQLsn NVARCHAR(128);
+		EXEC master.dbo.xp_regread
+			'HKEY_LOCAL_MACHINE',
+			'SYSTEM\CurrentControlSet\services\MSSQLSERVER',
+			'ObjectName', 
+			@SQLsn OUTPUT;
+		INSERT #output_man_script (SectionID,Section,Summary)
+		SELECT 0,'SQL Service Account',@SQLsn
+		
+		DECLARE @Agentsn NVARCHAR(128);
+		EXEC master.dbo.xp_regread
+			'HKEY_LOCAL_MACHINE',
+			'SYSTEM\CurrentControlSet\services\SQLSERVERAGENT',
+			'ObjectName', 
+			@Agentsn OUTPUT;
+		INSERT #output_man_script (SectionID,Section,Summary)
+		SELECT 0,'SQL Service Agent Account',@Agentsn
 
-	
-	/* To DO .. use powershell
+			/*----------------------------------------
+			--Check for current supported build of SQL server
+			----------------------------------------*/
+/* To DO .. use powershell
 	
 	SELECT @@VERSION
 
@@ -442,13 +532,129 @@ Microsoft%20SQL%20Server%202012%20Enterprise%20Service%20Pack%201
 	Enterprise Edition (64-bit) on Windows NT 6.2 <X64> (Build 9200: ) (Hypervisor)
 
 
-https://support.microsoft.com/api/lifecycle/GetProductsLifecycle?query=%7B%22names%22:%5B%22Microsoft%2520SQL%2520Server%25202012%2520Service%2520Pack%22%5D,%22years%22:%220%22,%22gdsId%22:0,%22export%22:true%7D
+https://support.microsoft.com/api/lifecycle/GetProductsLifecycle?query=%7B"names":%5B"Microsoft%2520SQL%2520Server%25202012%2520Service%2520Pack"%5D,"years":"0","gdsId":0,"export":true%7D
 
 */
+	DECLARE @CurrentBuild VARCHAR(50)
+	SELECT @CurrentBuild = [Character_Value] FROM @msversion 
+	WHERE [Name] = 'ProductVersion' 
+
+	/*Generate PowerShell to download your file*/
+	EXEC sp_configure 'show advanced options', 1
+	RECONFIGURE
+	-- enable xp_cmdshell
+	EXEC sp_configure 'xp_cmdshell', 1
+	RECONFIGURE
+	-- hide advanced options
+	EXEC sp_configure 'show advanced options', 0
+	RAISERROR (N'Running PowerShell to download support information from Brent Ozar',0,1) WITH NOWAIT;
+	DECLARE @pstext NVARCHAR(4000)
+
+	
+
+	
+	/* Brent Ozar
+	SET @pstext = '$h=@(''SQL Server'',''Service Pack'',''Cumulative Update'',''Release Date'',''Build'', ''Support Ends'');$o=@();'
+	SET @pstext = @pstext + '$vs=(''2016'',''2014'',''2012'',''2008'',''2008-r2'',''2017'');foreach($v in $vs){'
+	SET @pstext = @pstext + '$url="https://sqlserverupdates.com/sql-server-$v-updates/";$AllProtocols = [System.Net.SecurityProtocolType]''Ssl3,Tls, Tls11, Tls12'';[System.Net.ServicePointManager]::SecurityProtocol = $AllProtocols;'
+	SET @pstext = @pstext + '[System.Net.ServicePointManager]::ServerCertificateValidationCallback = {$true};$webclient = new-object System.Net.WebClient;$webClient.UseDefaultCredentials = $true;'
+	SET @pstext = @pstext + '$Raw = $webclient.DownloadString("$url");'
+	SET @pstext = @pstext + '$RawCut1 = $Raw.Indexof(''table-responsive'');'
+	SET @pstext = @pstext + '$RawCut = $Raw.Substring($RawCut1, $Raw.Length - $RawCut1);'
+	SET @pstext = @pstext + '$RawCut2 = $RawCut.Indexof(''/table'');'
+	SET @pstext = @pstext + '$RawCut3 = $RawCut.Substring($0, $RawCut2);'
+	SET @pstext = @pstext + '$rows = $RawCut3 -split ''<tr>'' -replace ''`n|`r'','''';'
+	SET @pstext = @pstext + 'foreach($row in $rows){'
+	SET @pstext = @pstext + '$tr = $row.replace(''<td >'',''<td>'').replace(''<th >'',''<th>'').replace(''&#8211;'','''').Replace(''<strong>'','''').Replace(''</strong>'','''').Replace(''`n'','' '').TrimStart();'
+	SET @pstext = @pstext + 'if($tr.IndexOf(''table class'') -gt 0 -OR $tr.IndexOf(''</th>'') -gt 0 -OR $tr.IndexOf(''<table'') -gt 0){}'
+	SET @pstext = @pstext + 'else{$obj=New-Object PSObject;$i=1;foreach($column in $tr -split ''</td>''){'
+	SET @pstext = @pstext + 'if($v -like ''2008*'' -AND $i -eq 1){$i++};$ch=$h[$i];$cell=$column.Replace(''<td> '','''').Replace(''&nbsp;'','''').Replace(''<td>'','''');'
+	SET @pstext = @pstext + '$c=$cell -replace ''`n|`r'';'
+	SET @pstext = @pstext + 'if($c.indexof(''</a>'') -gt 0 )'
+	SET @pstext = @pstext + '{if($c.Indexof(''<a'') -gt 0){'
+	SET @pstext = @pstext + '$c=$c.Substring(0,$c.Indexof(''<a'')-1) + $c.Substring($c.Indexof(''>'')+1, $c.Indexof(''</a>'')-$c.Indexof(''>'')-1)};'
+	SET @pstext = @pstext + 'if($c.Indexof(''<a'') -eq 0){'
+	SET @pstext = @pstext + '$c=$c.Substring($c.Indexof(''>'')+1, $c.Indexof(''</a>'')-$c.Indexof(''>'')-1)}};$c=$c.Replace(''('','''').Replace('')'','''');'
+	SET @pstext = @pstext + 'if($ch){$c.Replace(''`n'' ,'' '').TrimStart();}$i++}}}}'
+	SET @pstext=REPLACE(REPLACE(@pstext,'"','"""'),';;',';')
+	SET @pstext='powershell.exe -ExecutionPolicy Bypass -NoLogo -NonInteractive -NoProfile -Command "' + @pstext + '" '
+	INSERT INTO #SQLVersionsDump
+	EXEC xp_cmdshell @pstext
 
 
+	INSERT INTO  #SQLVersions ([Id], [Service Pack],[Cumulative Update],[Release Date],[Build],[Support Ends])
+	SELECT 
+	T1.ID / 5 + 1 [Id]
+	, T1.Output [Service Pack]
+	, T2.Output [Cumulative Update]
+	, T3.Output [Release Date]
+	, T4.Output [Build]
+	, T5.Output [Support Ends]
+	FROM #SQLVersionsDump T1
+	LEFT OUTER JOIN #SQLVersionsDump T2 ON T2.Id -1 = T1.ID
+	LEFT OUTER JOIN #SQLVersionsDump T3 ON T3.Id -2 = T1.ID
+	LEFT OUTER JOIN #SQLVersionsDump T4 ON T4.Id -3 = T1.ID
+	LEFT OUTER JOIN #SQLVersionsDump T5 ON T5.Id -4 = T1.ID
+	WHERE T1.ID % 5 = 0
+	*/
+	/*What does Microsoft say about support*/
+	DECLARE @SQLproductlevel NVARCHAR(50)
+	DECLARE @SQLVersionText NVARCHAR(200)
+
+	SELECT @SQLproductlevel = CONVERT(VARCHAR(50),SERVERPROPERTY ('productlevel'))
+	
+	SELECT @SQLVersionText =REPLACE( 'Microsoft SQL Server '
+	+  LEFT(REPLACE(@@VERSION,'Microsoft SQL Server ',''),4)
+    + REPLACE( @SQLproductlevel ,'SP',' Service Pack '),' ' ,'%2520')
+
+	DECLARE @URLofAwesomeUpdateInformation NVARCHAR(500)
+	--https://support.microsoft.com/api/lifecycle/GetProductsLifecycle?query=%7B"names":%5B"Microsoft%2520SQL%2520Server%25202012%2520Service%2520Pack%25203"%5D,"years":"0","gdsId":0,"export":true%7D
+	SET @URLofAwesomeUpdateInformation = 'https://support.microsoft.com/api/lifecycle/GetProductsLifecycle?query=%7B%22names%22:%5B%22' + @SQLVersionText + '%22%5D,%22years%22:%220%22,%22gdsId%22:0,%22export%22:true%7D'
+
+	SET @pstext = '$url=''' + @URLofAwesomeUpdateInformation + ''';$output =''C:\temp\sqlversiontest.csv'' ;'
+	SET @pstext = @pstext + ';$Download = (new-object System.Net.WebClient).DownloadFile($url, $output);'
+	SET @pstext = @pstext + '$new = Import-Csv $output;	foreach($r in $new){'
+	SET @pstext = @pstext + '$r.''Products Released''; $r.''Lifecycle Start Date''; $r.''Mainstream Support End Date'';$r.''Extended Support End Date'';$r.''Service Pack Support End Date''};'
+	--SET @pstext=REPLACE(REPLACE(@pstext,'"','""'),';;',';')
+	SET @pstext='powershell.exe -ExecutionPolicy Bypass -NoLogo -NonInteractive -NoProfile -Command "' + @pstext + '" '
+
+	INSERT INTO #SQLVersionsDump
+	EXEC xp_cmdshell @pstext
 
 
+	INSERT INTO  #SQLVersions ([Id], [Products Released],[Lifecycle Start Date],[Mainstream Support End Date],[Extended Support End Date],[Service Pack Support End Date])
+	SELECT 
+	T1.ID / 5 + 1 [Id]
+	, T1.Output [Products Released]
+	, T2.Output [Lifecycle Start Date]
+	, CASE WHEN LEFT(T3.Output,3) = 'Not' THEN NULL ELSE T3.Output END [Mainstream Support End Date]
+	, CASE WHEN LEFT(T4.Output,3) = 'Not' THEN NULL ELSE T4.Output END [Extended Support End Date]
+	, CASE WHEN LEFT(T5.Output,3) = 'Not' THEN NULL ELSE T5.Output END [Service Pack Support End Date]
+	FROM #SQLVersionsDump T1
+	LEFT OUTER JOIN #SQLVersionsDump T2 ON T2.Id -1 = T1.ID
+	LEFT OUTER JOIN #SQLVersionsDump T3 ON T3.Id -2 = T1.ID
+	LEFT OUTER JOIN #SQLVersionsDump T4 ON T4.Id -3 = T1.ID
+	LEFT OUTER JOIN #SQLVersionsDump T5 ON T5.Id -4 = T1.ID
+	WHERE T1.ID % 5 = 0
+	AND T1.Output IS NOT NULL
+
+	
+	/*This step requires administrative permissions on the local machine for SQL server Service account, at least it does not play nicely with "NT xx" accounts*/
+	INSERT #output_man_script (SectionID, Section,Summary,Severity)
+	SELECT 0
+		, CASE WHEN CONVERT(DATETIME,ISNULL(ISNULL([Mainstream Support End Date],[Extended Support End Date]),[Service Pack Support End Date])) < GETDATE() THEN '!BUILD NOT SUPPORTED!' ELSE 'Build in support' END
+		, 'Build:' + @SQLproductlevel 
+		+ ISNULL('; [Mainstream Support End Date]:' + [Mainstream Support End Date],'')
+		+ ISNULL('; [Extended Support End Date]:' + [Extended Support End Date],'')
+		+ ISNULL('; [Service Pack Support End Date]:' + [Service Pack Support End Date],'')
+		, CASE WHEN CONVERT(DATETIME,ISNULL(ISNULL([Mainstream Support End Date],[Extended Support End Date]),[Service Pack Support End Date])) < GETDATE() THEN @Result_YourServerIsDead ELSE @Result_Good END 
+	FROM #SQLVersions
+	
+
+
+	RAISERROR (N'Evaluated build support end date',0,1) WITH NOWAIT;
+	
+	
 			/*----------------------------------------
 			--Check for high worker thread usage
 			----------------------------------------*/
@@ -457,32 +663,34 @@ https://support.microsoft.com/api/lifecycle/GetProductsLifecycle?query=%7B%22nam
 	> 65	
 	BEGIN
 	INSERT #output_man_script (SectionID, Section,Summary) SELECT 0, 'HIGH Worker Thread Usage','------'
-	INSERT #output_man_script (SectionID, Section,Summary)
-	
-	SELECT 0, 'Worker threads',
-		CONVERT(VARCHAR(20),(
-		SELECT CONVERT(MONEY,SUM(current_workers_count)) as [Current worker thread] FROM sys.dm_os_schedulers)*100/max_workers_count) 
-		+ '% workes used. With average work queue count'
-		+ CONVERT(VARCHAR(15),(SELECT AVG (CONVERT(MONEY,work_queue_count))
-	FROM  sys.dm_os_schedulers WHERE STATUS = 'VISIBLE ONLINE' ))
-	FROM sys.dm_os_sys_info
+	INSERT #output_man_script (SectionID, Section,Summary, Severity)
+		SELECT 0, 'Worker threads',
+			CONVERT(VARCHAR(20),(
+			SELECT CONVERT(MONEY,SUM(current_workers_count)) as [Current worker thread] FROM sys.dm_os_schedulers)*100/max_workers_count) 
+			+ '% workes used. With average work queue count'
+			+ CONVERT(VARCHAR(15),(SELECT AVG (CONVERT(MONEY,work_queue_count))
+			
+		FROM  sys.dm_os_schedulers WHERE STATUS = 'VISIBLE ONLINE' ))
+		, @Result_YourServerIsDead
+		FROM sys.dm_os_sys_info
 	END
-	
+	RAISERROR (N'Looked at worker thread usage',0,1) WITH NOWAIT;
 
 			/*----------------------------------------
 			--Check for any pages marked suspect for corruption
 			----------------------------------------*/
 	IF EXISTS(select 1 from msdb.dbo.suspect_pages)
 	INSERT #output_man_script (SectionID, Section,Summary, Details) SELECT 0, 'SUSPECT PAGES !! WARNING !!','------','------'
-	INSERT #output_man_script (SectionID, Section,Summary, Details)
+	INSERT #output_man_script (SectionID, Section,Summary,Severity, Details)
 	SELECT 0,
 	'DB: ' + db_name(database_id)
 	+ '; FileID: ' + CONVERT(VARCHAR(20),file_id)
 	+ '; PageID: ' + CONVERT(VARCHAR(20), page_id)
 	, 'Event Type: ' + CONVERT(VARCHAR(20),event_type)
 	+ '; Count: ' + CONVERT(VARCHAR(20),error_count)
+	, @Result_YourServerIsDead
 	, 'Last Update: ' + CONVERT(VARCHAR(20),last_update_date,120)
-
+	
 	FROM msdb.dbo.suspect_pages
 	OPTION (RECOMPILE)
 
@@ -508,7 +716,7 @@ https://support.microsoft.com/api/lifecycle/GetProductsLifecycle?query=%7B%22nam
 	BEGIN
 
 		INSERT #output_man_script (SectionID, Section,Summary, Details) SELECT 1,'!!! WARNING - CHECK SET - MAKES INDEXES BREAK THINGS!!!','------','------'
-		INSERT #output_man_script (SectionID, Section,Summary, Details)
+		INSERT #output_man_script (SectionID, Section,Summary,Severity, Details)
 		SELECT DISTINCT 1
 		, ISNULL(CASE 
 		WHEN T.client_version < 3 THEN '!!! WARNING !!! Pre SQL 7'
@@ -539,6 +747,7 @@ https://support.microsoft.com/api/lifecycle/GetProductsLifecycle?query=%7B%22nam
 		+ ']; Interface: '+ ISNULL(T.client_interface_name,'')
 		+ '; User: ' + ISNULL(T.nt_user_name,'')
 		+ '; Host: ' + ISNULL(T.host_name,'') [Summary]
+		, @Result_Warning
 		, '' + ISNULL(CASE WHEN quoted_identifier = 0 THEN ';quoted_identifier = OFF' ELSE '' END
 		+ ''+  CASE WHEN ansi_nulls = 0 THEN ';ansi_nulls = OFF' ELSE '' END
 		+ ''+  CASE WHEN ansi_padding = 0 THEN ';ansi_padding = OFF' ELSE '' END
@@ -730,7 +939,7 @@ https://support.microsoft.com/api/lifecycle/GetProductsLifecycle?query=%7B%22nam
 	SET @oldestcachequery = (SELECT ISNULL(  MIN(creation_time),0.1) FROM sys.dm_exec_query_stats WITH (NOLOCK));
 	SET @lastservericerestart = (SELECT create_date FROM sys.databases WHERE name = 'tempdb');
 	SET @minutesSinceRestart = (SELECT DATEDIFF(MINUTE,@lastservericerestart,GETDATE()));
-	SET @CPUcount = (SELECT cpu_count FROM sys.dm_os_sys_info);
+	
 	SELECT @DaysUptime = CAST(DATEDIFF(hh,@lastservericerestart,GETDATE())/24. AS NUMERIC (23,2)) OPTION (RECOMPILE);
 	SELECT @DaysOldestCachedQuery = CAST(DATEDIFF(hh,@oldestcachequery,GETDATE())/24. AS NUMERIC (23,2)) OPTION (RECOMPILE);
 
@@ -761,7 +970,7 @@ https://support.microsoft.com/api/lifecycle/GetProductsLifecycle?query=%7B%22nam
 
 	   /*----------------------------------------
 			--Internals and Memory usage
-			----------------------------------------*/
+		----------------------------------------*/
 
 	SELECT @UsedMemory = CONVERT(MONEY,physical_memory_in_use_kb)/1024 /1000
 	FROM sys.dm_os_process_memory WITH (NOLOCK) OPTION (RECOMPILE)
@@ -769,8 +978,6 @@ https://support.microsoft.com/api/lifecycle/GetProductsLifecycle?query=%7B%22nam
 	, @AvailableMemoryGB =  CONVERT(MONEY,available_physical_memory_kb)/1024/1000 
 	FROM sys.dm_os_sys_memory WITH (NOLOCK) OPTION (RECOMPILE);
 	SELECT @VMType = RIGHT(@@version,CHARINDEX('(',REVERSE(@@version)))
-
-
 
 
 	IF @SQLVersion = 11
@@ -788,8 +995,8 @@ https://support.microsoft.com/api/lifecycle/GetProductsLifecycle?query=%7B%22nam
 
  
 	SELECT 3,'['+REPLICATE('|', CONVERT(MONEY,CONVERT(FLOAT,@UsedMemory)/CONVERT(FLOAT,@totalMemoryGB)) * 100) + REPLICATE('''',100-(CONVERT(MONEY,CONVERT(FLOAT,@UsedMemory)/CONVERT(FLOAT,@totalMemoryGB)) * 100) ) +']' 
-	, 'Sockets:' +  ISNULL(replace(replace(replace(replace(CONVERT(NVARCHAR,CONVERT(VARCHAR(20),([cpu_count] / [hyperthread_ratio]) )), CHAR(9), ' '),CHAR(10),' '), CHAR(13), ' '), '  ',' '),'')
-	+'; Virtual CPUs:' +  ISNULL(replace(replace(replace(replace(CONVERT(NVARCHAR,CONVERT(VARCHAR(20),[cpu_count]  )), CHAR(9), ' '),CHAR(10),' '), CHAR(13), ' '), '  ',' ') ,'')
+	, 'Sockets:' +  ISNULL(replace(replace(replace(replace(CONVERT(NVARCHAR,CONVERT(VARCHAR(20),(@CPUsocketcount ) )), CHAR(9), ' '),CHAR(10),' '), CHAR(13), ' '), '  ',' '),'')
+	+'; Virtual CPUs:' +  ISNULL(replace(replace(replace(replace(CONVERT(NVARCHAR,CONVERT(VARCHAR(20),@CPUcount   )), CHAR(9), ' '),CHAR(10),' '), CHAR(13), ' '), '  ',' ') ,'')
 	+'; VM Type:' +  ISNULL(replace(replace(replace(replace(CONVERT(NVARCHAR,ISNULL(@VMType,'')), CHAR(9), ' '),CHAR(10),' '), CHAR(13), ' '), '  ',' ') ,'')
 	+'; CPU Affinity:'+  ISNULL(replace(replace(replace(replace(CONVERT(NVARCHAR,ISNULL([affinity_type_desc],'')), CHAR(9), ' '),CHAR(10),' '), CHAR(13), ' '), '  ',' ') ,'')
 	+'; MemoryGB:' + ISNULL(CONVERT(VARCHAR(20), CONVERT(MONEY,CONVERT(FLOAT,@totalMemoryGB))),'')
@@ -869,7 +1076,9 @@ https://support.microsoft.com/api/lifecycle/GetProductsLifecycle?query=%7B%22nam
 	HAVING AVG(T1.SQLProcessUtilization) >= (CASE WHEN @ShowWarnings = 1 THEN 20 ELSE 0 END)
 	OPTION (RECOMPILE)
 
-	RAISERROR (N'Checked CPU usage for the last 5 minutes',0,1) WITH NOWAIT;
+	RAISERROR (N'Checked CPU usage for the last 5 hours',0,1) WITH NOWAIT;
+	
+
 
 
 			/*----------------------------------------
@@ -885,11 +1094,11 @@ https://support.microsoft.com/api/lifecycle/GetProductsLifecycle?query=%7B%22nam
 		IF EXISTS (SELECT 1 FROM @LoginLog)
 		BEGIN
 			INSERT #output_man_script (SectionID, Section,Summary, Details) SELECT 5, 'LOGINS - Failed Logins','------','------'
-			INSERT #output_man_script (SectionID, Section,Summary, HoursToResolveWithTesting  )
+			INSERT #output_man_script (SectionID, Section,Summary, Severity, HoursToResolveWithTesting  )
 			SELECT TOP 15 5, 'Date:'
 			+ CONVERT(VARCHAR(20),LogDate,120)
 			,replace(replace(replace(replace(CONVERT(NVARCHAR(500),Text), CHAR(9), ' '),CHAR(10),' '), CHAR(13), ' '), '  ',' ')  
-			, 0.25
+			,@Result_Warning , 0.25
 			FROM @LoginLog ORDER BY LogDate DESC
 			OPTION (RECOMPILE)
 		END
@@ -925,10 +1134,11 @@ https://support.microsoft.com/api/lifecycle/GetProductsLifecycle?query=%7B%22nam
 		IF EXISTS (SELECT * FROM @Errorlog)
 		BEGIN
 			INSERT #output_man_script (SectionID, Section,Summary, Details) SELECT 6,'AGENT LOG Errors','------','------'
-			INSERT #output_man_script (SectionID, Section,Summary, Details,HoursToResolveWithTesting  )
+			INSERT #output_man_script (SectionID, Section,Summary, Severity, Details,HoursToResolveWithTesting  )
 			SELECT 6, 'Date:'+ CONVERT(VARCHAR(20),LogDate ,120)
 			, 'ErrorLevel:'+ CONVERT(VARCHAR(20),ErrorLevel)
-			,[Text], 1  FROM @Errorlog ORDER BY LogDate DESC
+			, @Result_Warning ,[Text], 1  
+			FROM @Errorlog ORDER BY LogDate DESC
 			
 			OPTION (RECOMPILE)
 		END  
@@ -955,12 +1165,13 @@ https://support.microsoft.com/api/lifecycle/GetProductsLifecycle?query=%7B%22nam
 	WHERE DBSysJobHistory.run_status <> 1
 	)
 	INSERT #output_man_script (SectionID, Section,Summary, Details) SELECT 7, 'FAILED AGENT JOBS','------','------'
-	INSERT #output_man_script (SectionID, Section,Summary, Details,HoursToResolveWithTesting  )
+	INSERT #output_man_script (SectionID, Section,Summary, Severity, Details,HoursToResolveWithTesting  )
 	SELECT  7,'Job Name:' + SysJobs.name
 		+'; Step:'+ SysJobSteps.step_name 
 		+ ' - '+ Job.run_status
 		, 'MessageId: ' +CONVERT(VARCHAR(20),Job.sql_message_id)
 		+ '; Severity:'+ CONVERT(VARCHAR(20),Job.sql_severity)
+		, @Result_Warning
 		, 'Message:'+ Job.message
 		+'; Date:' + CONVERT(VARCHAR(20), Job.exec_date,120)
 		, 2
@@ -1036,10 +1247,11 @@ https://support.microsoft.com/api/lifecycle/GetProductsLifecycle?query=%7B%22nam
 		OR backup_finish_date IS NULL) 
 	)
 	INSERT #output_man_script (SectionID, Section,Summary, Details) SELECT 8,'DATABASE - No recent Backups','------','------'
-	INSERT #output_man_script (SectionID, Section,Summary, HoursToResolveWithTesting  )
+	INSERT #output_man_script (SectionID, Section,Summary, Severity, HoursToResolveWithTesting  )
 
 	SELECT 8, name [Section] , ('; Backup Finish Date:' + ISNULL(CONVERT(VARCHAR(20),backup_finish_date,120),'')
 		+ '; Type:' +coalesce(type,'NO BACKUP')) [Summary]
+		, @Result_YourServerIsDead
 		, 2
 	FROM (
 		SELECT database_name
@@ -1145,6 +1357,8 @@ https://support.microsoft.com/api/lifecycle/GetProductsLifecycle?query=%7B%22nam
 	EXEC xp_msver
 	*/
 	INSERT #output_man_script (SectionID, Section,Summary, Details) SELECT 10, 'Disk Latency and Space','------','------'
+/* Deprecated @ 09-04-2018 Adrian
+
 	INSERT #output_man_script (SectionID, Section,Summary,HoursToResolveWithTesting  )
 
 	SELECT 10, UPPER([Drive]) + '\ ' + REPLICATE('|',CASE WHEN (num_of_reads = 0 AND num_of_writes = 0) THEN 0 ELSE (io_stall/(num_of_reads + num_of_writes)) END) +' '+ CONVERT(VARCHAR(20), CASE WHEN (num_of_reads = 0 AND num_of_writes = 0) THEN 0 ELSE (io_stall/(num_of_reads + num_of_writes)) END) + ' ms' 
@@ -1154,11 +1368,11 @@ https://support.microsoft.com/api/lifecycle/GetProductsLifecycle?query=%7B%22nam
 	+ '; Total:' + CONVERT(VARCHAR(20), CASE WHEN (num_of_reads = 0 AND num_of_writes = 0) THEN 0 ELSE (io_stall/(num_of_reads + num_of_writes)) END) 
 	+ ' (Latency in ms)'
 	, CASE WHEN CASE WHEN (num_of_reads = 0 AND num_of_writes = 0) THEN 0 ELSE (io_stall/(num_of_reads + num_of_writes)) END > 25 THEN 0.4 * (io_stall/(num_of_reads + num_of_writes))/5  ELSE 0 END
-	/*
+
 	, CASE WHEN num_of_reads = 0 THEN 0 ELSE (num_of_bytes_read/num_of_reads) END AS [Avg Bytes/Read]
 	, CASE WHEN io_stall_write_ms = 0 THEN 0 ELSE (num_of_bytes_written/num_of_writes) END AS [Avg Bytes/Write]
 	, CASE WHEN (num_of_reads = 0 AND num_of_writes = 0) THEN 0 ELSE ((num_of_bytes_read + num_of_bytes_written)/(num_of_reads + num_of_writes)) END AS [Avg Bytes/Transfer]
-	*/
+
 	FROM (
 	SELECT LEFT(mf.physical_name, 2) AS Drive
 		, MAX(CAST(fd.FreeSpaceMB / 1024 as decimal(20,2))) [AvailableGBs]
@@ -1176,6 +1390,51 @@ https://support.microsoft.com/api/lifecycle/GetProductsLifecycle?query=%7B%22nam
 	  
 		  GROUP BY LEFT(mf.physical_name, 2)) AS tab
 	ORDER BY CASE WHEN (num_of_reads = 0 AND num_of_writes = 0) THEN 0 ELSE (io_stall/(num_of_reads + num_of_writes)) END OPTION (RECOMPILE);
+	*/
+	
+	INSERT #output_man_script (SectionID, Section,Summary, Details)
+	SELECT 10,'[Drive]; [Latency (ms)];[PhysicalDailyIO_GB];[Details]','[READ latency (ms)]; [WRITE latency (ms)]','[FileName]; [Type]'
+	INSERT #output_man_script (SectionID, Section,Summary,Severity)
+	SELECT 10, LEFT(mf.physical_name, 2) + '\ '
+			+ ' ; ' + CONVERT(VARCHAR(250),SUM(io_stall)/SUM(num_of_reads+num_of_writes)) + ' (ms)'
+			+ ' ; ' + CONVERT(VARCHAR(25),(CONVERT(MONEY,SUM([num_of_reads])) + SUM([num_of_writes])) * 8 /1024/1024/ CONVERT(MONEY,@DaysUptime))+ 'GB/day'
+			+ 'Free space: ' + CONVERT(VARCHAR(20), MAX(CAST(fd.FreeSpaceMB / 1024 as decimal(20,2)))) + 'GB'
+			, CONVERT(VARCHAR(25),SUM(io_stall_read_ms)/SUM(num_of_reads)) + ' (ms)'
+			+ ' ; ' + CONVERT(VARCHAR(25),SUM(io_stall_write_ms)/SUM(num_of_writes) )+ ' (ms)'
+			, CASE 
+			WHEN SUM(io_stall)/SUM(num_of_reads+num_of_writes) < 10 THEN @Result_Good
+			WHEN SUM(io_stall)/SUM(num_of_reads+num_of_writes) BETWEEN 10 AND 100 THEN @Result_Warning
+			WHEN SUM(io_stall)/SUM(num_of_reads+num_of_writes) > 100 THEN @Result_YourServerIsDead
+			ELSE ''
+			END 
+	
+			FROM sys.dm_io_virtual_file_stats(NULL, NULL) AS vfs
+			INNER JOIN sys.master_files AS mf WITH (NOLOCK)
+			ON vfs.database_id = mf.database_id AND vfs.file_id = mf.file_id
+			INNER JOIN @fixeddrives fd ON fd.drive COLLATE DATABASE_DEFAULT = LEFT(mf.physical_name, 1) COLLATE DATABASE_DEFAULT
+		  
+			GROUP BY LEFT(mf.physical_name, 2)
+
+	INSERT #output_man_script (SectionID, Section,Summary,Severity, Details)
+	SELECT 10, LEFT ([f].[physical_name], 2) + '\ '
+			+ '; ' + DB_NAME ([s].[database_id]) 
+			+ '; '+ CONVERT(VARCHAR(20), CASE WHEN ([num_of_reads] = 0 AND [num_of_writes] = 0) THEN 0 ELSE ([io_stall] / ([num_of_reads] + [num_of_writes])) END) + ' (ms)'
+			+ '; '+ CONVERT(VARCHAR(20),CASE WHEN [num_of_reads] + [num_of_writes] = 0 THEN 0 ELSE CONVERT(MONEY,([num_of_reads] + [num_of_writes])) * 8 /1024/1024/ CONVERT(MONEY,@DaysUptime) END ) + 'GB/day'
+			, CONVERT(VARCHAR(20),CASE WHEN [num_of_reads] = 0 THEN 0 ELSE ([io_stall_read_ms] / [num_of_reads]) END ) + ' (ms)'
+			+ '; '+CONVERT(VARCHAR(20),CASE WHEN [num_of_writes] = 0 THEN 0 ELSE ([io_stall_write_ms] / [num_of_writes]) END ) + ' (ms)'
+			, CASE 
+			WHEN (io_stall)/(num_of_reads+num_of_writes) < 10 THEN @Result_Good
+			WHEN (io_stall)/(num_of_reads+num_of_writes) BETWEEN 10 AND 100 THEN @Result_Warning
+			WHEN (io_stall)/(num_of_reads+num_of_writes) > 100 THEN @Result_YourServerIsDead
+			ELSE ''
+			END
+			, [f].type_desc  COLLATE DATABASE_DEFAULT
+			+ '; '+ [f].[physical_name]  COLLATE DATABASE_DEFAULT
+	FROM sys.dm_io_virtual_file_stats (NULL,NULL) AS [s]
+	JOIN sys.master_files AS [f] ON [s].[database_id] = [f].[database_id] AND [s].[file_id] = [f].[file_id]
+
+	ORDER BY [f].[database_id], [f].[file_id],LEFT ([f].[physical_name], 2)
+	
 	RAISERROR (N'Checked for disk latency and space',0,1) WITH NOWAIT;
 
 			/*----------------------------------------
@@ -1338,22 +1597,23 @@ https://support.microsoft.com/api/lifecycle/GetProductsLifecycle?query=%7B%22nam
 			--Find cpu load, io and memory per DB
 			----------------------------------------*/
 
-	INSERT #output_man_script (SectionID, Section,Summary, Details) SELECT 14, 'CPU IO Memory','------','------'
+	INSERT #output_man_script (SectionID, Section,Summary, Details) SELECT 14, 'Database: CPU IO Memory DISK DiskIO Latency','------','------'
 	INSERT #output_man_script (SectionID, Section,Summary ,Details )
-
-	SELECT 14,  REPLICATE('|',CONVERT(MONEY,T2.[TotalIO])/ SUM(T2.[TotalIO]) OVER()* 100.0) 
+	SELECT 14,'Breakdown', 'DBName; CPU; IO; Buffer; DiskUsage(GB); Disk IO daily (GB); Latency (ms)', 'CPU time(s); Total IO; Buffer Pages; Buffer MB'
+	INSERT #output_man_script (SectionID, Section,Summary ,Details )
+SELECT 14,  REPLICATE('|',CONVERT(MONEY,T2.[TotalIO])/ SUM(T2.[TotalIO]) OVER()* 100.0) 
 	+ REPLICATE('''',100 - CONVERT(MONEY,T2.[TotalIO])/ SUM(T2.[TotalIO]) OVER()* 100.0) + '' + CONVERT(VARCHAR(20), CONVERT(INT,ROUND(CONVERT(MONEY,T2.[TotalIO])/ SUM(T2.[TotalIO]) OVER()* 100.0,0))) +'% IO '
 	, T1.DatabaseName
-	+ '; CPU: ' + ISNULL(CONVERT(VARCHAR(20),CONVERT(INT,ROUND([CPU_Time(Ms)]/1000 * 1.0 /SUM([CPU_Time(Ms)]/1000) OVER()* 100.0,0))),'0') +'%'
-	+ '; IO:' +  ISNULL(CONVERT(VARCHAR(20),CONVERT(INT,ROUND(CONVERT(MONEY,T2.[TotalIO])/ SUM(T2.[TotalIO]) OVER()* 100.0 ,0))) ,'0')+'%'
-	+ '; Buffer:' +  ISNULL(CONVERT(VARCHAR(20),CONVERT(INT,ROUND(CONVERT(MONEY,src.db_buffer_pages )/ SUM(src.db_buffer_pages ) OVER()* 100.0 ,0))),'0')+'%'
-	+ '; Disk GB:' +  + ISNULL(CONVERT(VARCHAR(20),CONVERT(MONEY,TotalSize/1024)),'')
-
-	, ' CPU time(s):' + ISNULL(CONVERT(VARCHAR(20),[CPU_Time(Ms)]) + ' (' + CONVERT(VARCHAR(20),CAST([CPU_Time(Ms)]/1000 * 1.0 /SUM([CPU_Time(Ms)]/1000) OVER()* 100.0 AS DECIMAL(5, 2))) + '%)','') 
-	+ '; Total IO: ' +  ISNULL(CONVERT(VARCHAR(20),[TotalIO]) + ' ; Reads: ' + CONVERT(VARCHAR(20),T2.[Number of Reads]) +' ; Writes: '+ CONVERT(VARCHAR(20),T2.[Number of Writes]),'')
-	+ '; Buffer Pages:' +  ISNULL(CONVERT(VARCHAR(20),src.db_buffer_pages),'')
-	+ '; Buffer MB:'+ CONVERT(VARCHAR(20),src.db_buffer_pages / 128) 
-	
+	+ '; ' + ISNULL(CONVERT(VARCHAR(20),CONVERT(INT,ROUND([CPU_Time(Ms)]/1000 * 1.0 /SUM([CPU_Time(Ms)]/1000) OVER()* 100.0,0))),'0') +'%'
+	+ '; ' +  ISNULL(CONVERT(VARCHAR(20),CONVERT(INT,ROUND(CONVERT(MONEY,T2.[TotalIO])/ SUM(T2.[TotalIO]) OVER()* 100.0 ,0))) ,'0')+'%'
+	+ '; ' +  ISNULL(CONVERT(VARCHAR(20),CONVERT(INT,ROUND(CONVERT(MONEY,src.db_buffer_pages )/ SUM(src.db_buffer_pages ) OVER()* 100.0 ,0))),'0')+'%'
+	+ '; ' +  + ISNULL(CONVERT(VARCHAR(20),CONVERT(MONEY,TotalSize/1024)),'')
+	+ '; ' + DBlatency.[GB/day] +'(GB)'
+	+ '; ' + DBlatency.[Latency]
+	,  ISNULL(CONVERT(VARCHAR(20),[CPU_Time(Ms)]) + ' (' + CONVERT(VARCHAR(20),CAST([CPU_Time(Ms)]/1000 * 1.0 /SUM([CPU_Time(Ms)]/1000) OVER()* 100.0 AS DECIMAL(5, 2))) + '%)','') 
+	+ '; ' +  ISNULL(CONVERT(VARCHAR(20),[TotalIO]) + ' ; Reads: ' + CONVERT(VARCHAR(20),T2.[Number of Reads]) +' ; Writes: '+ CONVERT(VARCHAR(20),T2.[Number of Writes]),'')
+	+ '; ' +  ISNULL(CONVERT(VARCHAR(20),src.db_buffer_pages),'')
+	+ '; '+ CONVERT(VARCHAR(20),src.db_buffer_pages / 128) 
 
 	FROM(
 		SELECT TOP 100 PERCENT
@@ -1388,7 +1648,20 @@ https://support.microsoft.com/api/lifecycle/GetProductsLifecycle?query=%7B%22nam
 		GROUP BY database_id
 	) src ON src.database_id = T1.DatabaseID
 	LEFT OUTER JOIN  (SELECT DatabaseName, SUM(CAST(FileSize*@PageSize/@Kb as decimal(15,2))) TotalSize FROM @FileSize F1 GROUP BY DatabaseName) fs2 ON  fs2.DatabaseName COLLATE DATABASE_DEFAULT =  T2.DatabaseName COLLATE DATABASE_DEFAULT
+	
+	LEFT OUTER JOIN (
+	SELECT  DB_NAME ([s].[database_id]) [DBName] 
+			, CONVERT(VARCHAR(20), CASE WHEN (SUM([num_of_reads]) = 0 AND SUM([num_of_writes]) = 0) THEN 0 
+			ELSE (SUM([io_stall]) / (SUM([num_of_reads]) + SUM([num_of_writes]))) END) + ' (ms)' [Latency]
+			, CONVERT(VARCHAR(20),CASE WHEN SUM([num_of_reads]) + SUM([num_of_writes]) = 0 THEN 0 
+			ELSE CONVERT(MONEY,(SUM([num_of_reads]) + SUM([num_of_writes]))) * 8 /1024/1024/ CONVERT(MONEY,@DaysUptime) END ) [GB/day]
+			, CONVERT(VARCHAR(20),CASE WHEN SUM([num_of_reads]) + SUM([num_of_writes]) = 0 THEN 0 
+			ELSE CONVERT(MONEY,(SUM(CONVERT(MONEY,[num_of_reads])) + SUM([num_of_writes]))) END) [DBTotalIO]
+		FROM sys.dm_io_virtual_file_stats (NULL,NULL) AS [s]
+		JOIN sys.master_files AS [f] ON [s].[database_id] = [f].[database_id] AND [s].[file_id] = [f].[file_id]
+		GROUP BY DB_NAME ([s].[database_id]) 
 
+	) DBlatency ON DBlatency.DBName =  T1.DatabaseName
 	WHERE T1.DatabaseName IS NOT NULL
 	ORDER BY [TotalIO] DESC,[CPU_Time(Ms)] DESC
 	OPTION (RECOMPILE) ;
@@ -1402,7 +1675,7 @@ https://support.microsoft.com/api/lifecycle/GetProductsLifecycle?query=%7B%22nam
 	INSERT #output_man_script (SectionID, Section,Summary, Details) SELECT 15, 'TOP 10 WAIT STATS','------','------'
 	
 	--INSERT @Waits 
-	INSERT #output_man_script (SectionID, Section,Summary,HoursToResolveWithTesting  )
+	INSERT #output_man_script (SectionID, Section,Summary,Severity,HoursToResolveWithTesting )
 	SELECT TOP 10 15,
 	REPLICATE ('|', 100.0 * [wait_time_ms] / SUM ([wait_time_ms]) OVER())+ REPLICATE ('''', 100- 100.0 * [wait_time_ms] / SUM ([wait_time_ms]) OVER()) + CONVERT(VARCHAR(20), CONVERT(INT,ROUND(100.0 * [wait_time_ms] / SUM ([wait_time_ms]) OVER(),0))) + '%'
 	, [wait_type] + ':' 
@@ -1411,10 +1684,16 @@ https://support.microsoft.com/api/lifecycle/GetProductsLifecycle?query=%7B%22nam
 	+'; Wait(s):'+ CONVERT(VARCHAR(20),CONVERT(BIGINT,[wait_time_ms] / 1000.0)) + '(s)'
 	+'; Wait count:' + CONVERT(VARCHAR(20),[waiting_tasks_count])
 	, CASE 
+		WHEN CONVERT(MONEY,SUM(60.0 * wait_time_ms) OVER (PARTITION BY wait_type) / @minutesSinceRestart /60000/@CPUcount) BETWEEN 10 AND 30 THEN @Result_Warning
+		WHEN CONVERT(MONEY,SUM(60.0 * wait_time_ms) OVER (PARTITION BY wait_type) / @minutesSinceRestart /60000/@CPUcount) > 30 THEN  @Result_YourServerIsDead
+		ELSE @Result_Good END
+	, CASE 
 		WHEN [wait_type] = 'CXPACKET' THEN 5
 		WHEN [wait_type] LIKE 'PAGEIOLATCH%' THEN 8
 		ELSE 0
 	END
+
+
 	FROM sys.dm_os_wait_stats
 	WHERE 
 	[wait_type] NOT IN (
@@ -1496,7 +1775,7 @@ https://support.microsoft.com/api/lifecycle/GetProductsLifecycle?query=%7B%22nam
         N'XE_DISPATCHER_JOIN', -- https://www.sqlskills.com/help/waits/XE_DISPATCHER_JOIN
         N'XE_DISPATCHER_WAIT', -- https://www.sqlskills.com/help/waits/XE_DISPATCHER_WAIT
         N'XE_TIMER_EVENT' -- https://www.sqlskills.com/help/waits/XE_TIMER_EVENT
-		AND [waiting_tasks_count] > 0
+		) AND [waiting_tasks_count] > 0
 	ORDER BY [wait_time_ms] DESC
 	OPTION (RECOMPILE)
 
@@ -1967,21 +2246,18 @@ https://support.microsoft.com/api/lifecycle/GetProductsLifecycle?query=%7B%22nam
 	IF EXISTS (SELECT 1 FROM #MissingIndex ) 
 	BEGIN
 		INSERT #output_man_script (SectionID, Section,Summary, Details) SELECT 18, 'MISSING INDEXES - !Benefit > 1mm!','------','------'
-		INSERT #output_man_script (SectionID, Section,Summary ,Details,HoursToResolveWithTesting )
-			SELECT 18, REPLICATE('|',ROUND(LOG(T1.magic_benefit_number),0)) + ' ' + CONVERT(VARCHAR(20),LOG(T1.magic_benefit_number)) + '' 
-			+ CASE WHEN LOG(T1.magic_benefit_number) < 10 THEN ' '
-			WHEN LOG(T1.magic_benefit_number) >= 10 AND LOG(T1.magic_benefit_number) < 12 THEN ' (".)/'
-			WHEN LOG(T1.magic_benefit_number) >= 12 AND LOG(T1.magic_benefit_number) < 14 THEN ' ("o)'
-			WHEN LOG(T1.magic_benefit_number) >= 14 AND LOG(T1.magic_benefit_number) < 16 THEN ' (**.)'
-			WHEN LOG(T1.magic_benefit_number) >= 16 AND LOG(T1.magic_benefit_number) < 20 THEN ' WTF - really'
-			WHEN LOG(T1.magic_benefit_number) >= 20 AND LOG(T1.magic_benefit_number) < 25  THEN ' You server SUCKS ROCKS man, SUCKS ROCKS'
-			WHEN LOG(T1.magic_benefit_number) > 25  THEN ' No way. Send me a screenshot, adrian.sullivan@lexel.co.nz'
-			END
+		INSERT #output_man_script (SectionID, Section,Summary ,Severity, Details,HoursToResolveWithTesting )
+			SELECT 18
+			, REPLICATE('|',ROUND(LOG(T1.magic_benefit_number),0)) + ' ' + CONVERT(VARCHAR(20),LOG(T1.magic_benefit_number)) + '' 
 			, 'Benefit:'+  CONVERT(VARCHAR(20),CONVERT(BIGINT,T1.magic_benefit_number),0)
 			+ '; ' + T1.[Table]
 			+ '; Eq:' + ISNULL(T1.equality_columns,'')
 			+ '; Ineq:' +  ISNULL(T1.inequality_columns,'')
 			+ '; Incl:' +  ISNULL(T1.included_columns,'')
+			,CASE WHEN LOG(T1.magic_benefit_number)  < 13 THEN @Result_Warning 
+			WHEN LOG(T1.magic_benefit_number) >= 13 AND LOG(T1.magic_benefit_number) < 20 THEN @Result_YourServerIsDead  
+			WHEN LOG(T1.magic_benefit_number) >= 20  THEN @Result_ReallyBad
+			END
 			, T2.[SETs] + '; ' + CHAR(13) + CHAR(10)  +'SELECT '''  + CHAR(13) + CHAR(10) + REPLACE(T1.ChangeIndexStatement,'< be clever here >', ' ''+ ('+  BeingClever + ') + '' ') + ''' '
 			, CASE 
 			WHEN LOG(T1.magic_benefit_number) >= 10 AND LOG(T1.magic_benefit_number) < 12 THEN 1
@@ -2969,6 +3245,12 @@ From Tasks;
 	FROM #LEXEL_OES_stats_output
 	GROUP BY domain, SQLInstance
 
+	INSERT #output_man_script (SectionID, Section)
+	SELECT  99, 'Total Disk I/O per day: '
+		+ CONVERT(VARCHAR(20),CASE WHEN SUM([num_of_reads]) + SUM([num_of_writes]) = 0 THEN 0 
+			ELSE CONVERT(MONEY,(SUM([num_of_reads]) + SUM([num_of_writes]))) * 8 /1024/1024/ CONVERT(MONEY,@DaysUptime) END ) + 'GB/day'
+	FROM sys.dm_io_virtual_file_stats (NULL,NULL) AS [s]
+	
 	INSERT #output_man_script (SectionID, Section,Summary,Details)
 	SELECT
 	 99 [SectionID]
@@ -3015,7 +3297,54 @@ From Tasks;
 			/*----------------------------------------
 			--select output
 			----------------------------------------*/
-   
+			IF UPPER(LEFT(@Export,1)) = 'S'
+BEGIN	
+	SELECT T1.ID
+	,  evaldate
+	, T1.domain
+	, T1.SQLInstance
+	, T1.SectionID
+	, T1.Section
+	, ISNULL(T1.Summary,'') [Summary]
+	, ISNULL(T1.Severity,'') [Severity]
+	, ISNULL(T1.Details,'') [Details]
+	, ISNULL(T1.HoursToResolveWithTesting,'') [HoursToResolveWithTesting]
+	, CASE WHEN  @ShowQueryPlan = 1 THEN ISNULL(replace(replace(replace(replace(ISNULL(CONVERT(NVARCHAR(MAX),QueryPlan),''), CHAR(9), ' '),CHAR(10),' '), CHAR(13), ' '), '  ',' '),'')   ELSE NULL END QueryPlan
+	FROM #output_man_script T1
+	ORDER BY ID ASC
+	OPTION (RECOMPILE)
+
+END
+
+IF UPPER(LEFT(@Export,1)) = 'T'
+BEGIN
+	IF OBJECT_ID(@ExportDBName + '.' + @ExportSchema  + '.' + @ExportTableName) IS NULL
+	BEGIN
+		SET @dynamicSQL = 'CREATE TABLE ' + @ExportDBName + '.' + @ExportSchema  + '.' + @ExportTableName + '
+	( 
+	ID INT
+	,  evaldate DATETIME
+	, domain NVARCHAR(50)
+	, SQLInstance NVARCHAR(50)
+	, SectionID TINYINT
+	, Section VARCHAR(MAX)
+	, Summary VARCHAR(MAX)
+	, Severity NVARCHAR(5)
+	, Details VARCHAR(MAX)
+	, HoursToResolveWithTesting MONEY
+	, QueryPlan NVARCHAR(MAX)
+	);'	
+		EXEC sp_executesql @dynamicSQL;	
+	END
+	ELSE
+	BEGIN
+		SET @dynamicSQL = 'DELETE FROM ' + @ExportDBName + '.' + @ExportSchema  + '.' + @ExportTableName + '
+		WHERE	evaldate < DATEADD(DAY, - ' + CONVERT(VARCHAR(5),@ExportCleanupDays) + ', GETDATE())'
+		EXEC sp_executesql @dynamicSQL;	
+	END
+
+	SET @dynamicSQL = 'INSERT INTO ' + @ExportDBName + '.' + @ExportSchema  + '.' + @ExportTableName + '
+			
 	SELECT T1.ID
 	,  evaldate
 	, T1.domain
@@ -3023,12 +3352,16 @@ From Tasks;
 	, T1.SectionID
 	, T1.Section
 	, T1.Summary
+	, T1.Severity
 	, T1.Details
 	, T1.HoursToResolveWithTesting
-	, CASE WHEN  @ShowQueryPlan = 1 THEN ISNULL(replace(replace(replace(replace(ISNULL(CONVERT(NVARCHAR(MAX),QueryPlan),''), CHAR(9), ' '),CHAR(10),' '), CHAR(13), ' '), '  ',' '),'')   ELSE NULL END QueryPlan
+	, CASE WHEN  ' + CONVERT(VARCHAR(5),@ShowQueryPlan) + ' = 1 THEN ISNULL(replace(replace(replace(replace(ISNULL(CONVERT(NVARCHAR(MAX),QueryPlan),''''), CHAR(9), '' ''),CHAR(10),'' ''), CHAR(13), '' ''), ''  '','' ''),'''')   ELSE NULL END QueryPlan
 	FROM #output_man_script T1
 	ORDER BY ID ASC
-	OPTION (RECOMPILE)
+	OPTION (RECOMPILE)'
+	EXEC sp_executesql @dynamicSQL;	
+
+END
 
 	IF OBJECT_ID('tempdb.#output_man_script') IS NOT NULL
 		DROP TABLE #output_man_script  
@@ -3050,6 +3383,12 @@ From Tasks;
 		DROP TABLE #HeapTable;
 	IF OBJECT_ID('tempdb..#whatsets') IS NOT NULL
 		DROP TABLE #whatsets
+	IF OBJECT_ID('tempdb..#dbccloginfo') IS NOT NULL
+		DROP TABLE #dbccloginfo
+	IF OBJECT_ID('tempdb..SQLVersionsDump') IS NOT NULL
+		DROP TABLE #SQLVersionsDump
+	IF OBJECT_ID('tempdb..SQLVersions') IS NOT NULL
+		DROP TABLE #SQLVersions
 	
 	IF OBJECT_ID('tempdb.dbo.#LEXEL_OES_stats_sql_handle_convert_table', 'U') IS NOT NULL
 		DROP TABLE #LEXEL_OES_stats_sql_handle_convert_table;

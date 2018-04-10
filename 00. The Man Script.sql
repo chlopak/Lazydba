@@ -102,18 +102,154 @@ END
 	SET @pstext = @pstext + 'Copy-DbaSsisCatalog -Source SUN -Destination MOON ;' ;
 */
 
+	EXEC master.[dbo].[sqlsteward] 
+		@TopQueries = 50
+		, @FTECost  = 60000
+		, @ShowQueryPlan = 1
+		, @PrepForExport = 1
+		, @Export = 'Screen' 
+		, @ExportSchema   = 'dbo'
+		, @ExportDBName = 'master'
+		, @ExportTableName = 'sqlsteward_output'
+		, @ExportCleanupDays  = 180
 
-EXEC master.[dbo].[sqlsteward] @TopQueries = 50, @FTECost  = 60000, @ShowQueryPlan = 1, @PrepForExport = 1
-EXEC [dbo].[sp_Blitz] @CheckUserDatabaseObjects = 1 ,@CheckProcedureCache = 1 ,@OutputType = 'TABLE' ,@OutputProcedureCache = 0 ,@CheckProcedureCacheFilter = NULL,@CheckServerInfo = 1;
+    -- Insert statements for procedure here
+	EXEC [dbo].[sp_Blitz] 
+		@CheckUserDatabaseObjects = 1 
+		, @CheckProcedureCache = 1 
+		, @OutputType = 'TABLE' 
+		, @OutputProcedureCache = 0 
+		, @CheckProcedureCacheFilter = NULL
+		, @CheckServerInfo = 1
+		, @OutputXMLasNVARCHAR = 1
+		, @OutputDatabaseName = 'master'
+		, @OutputSchemaName = 'dbo'
+		, @OutputTableName = 'sp_Blitz_output'
 
-IF @RunBlitz = 1
-BEGIN
-	EXEC dbo.sp_BlitzFirst @ExpertMode = 1;
-
-	EXEC [dbo].[sp_Blitz] @CheckUserDatabaseObjects = 1 ,@CheckProcedureCache = 1 ,@OutputType = 'TABLE' ,@OutputProcedureCache = 0 ,@CheckProcedureCacheFilter = NULL,@CheckServerInfo = 1;
+	EXEC dbo.sp_BlitzFirst 
+		@ExpertMode = 1
+		, @CheckProcedureCache = 1
+		, @FileLatencyThresholdMS = 0
+		, @Seconds = 30;
 
 	EXEC [dbo].[sp_BlitzIndex] @Mode = 4, @SkipStatistics = 0, @GetAllDatabases = 1, @OutputServerName = 1, @OutputDatabaseName = 1;
-END
 
 
+
+
+/*
+USE [msdb]
+GO
+DECLARE @jobId BINARY(16)
+EXEC  msdb.dbo.sp_add_job @job_name=N'RunDiagnostics', 
+		@enabled=1, 
+		@notify_level_eventlog=0, 
+		@notify_level_email=2, 
+		@notify_level_netsend=2, 
+		@notify_level_page=2, 
+		@delete_level=0, 
+		@category_name=N'[Uncategorized (Local)]', 
+		@owner_login_name=N'sa', @job_id = @jobId OUTPUT
+select @jobId
+GO
+EXEC msdb.dbo.sp_add_jobserver @job_name=N'RunDiagnostics', @server_name = N'LXLSQL01'
+GO
+USE [msdb]
+GO
+EXEC msdb.dbo.sp_add_jobstep @job_name=N'RunDiagnostics', @step_name=N'Run sp_Blitz to table', 
+		@step_id=1, 
+		@cmdexec_success_code=0, 
+		@on_success_action=3, 
+		@on_fail_action=2, 
+		@retry_attempts=0, 
+		@retry_interval=0, 
+		@os_run_priority=0, @subsystem=N'TSQL', 
+		@command=N'EXEC [dbo].[sp_Blitz] 
+		@CheckUserDatabaseObjects = 1 
+		, @CheckProcedureCache = 1 
+		, @OutputType = ''TABLE'' 
+		, @OutputProcedureCache = 1 
+		, @CheckProcedureCacheFilter = NULL
+		, @CheckServerInfo = 1
+		, @OutputXMLasNVARCHAR = 1
+		, @OutputDatabaseName = ''master''
+		, @OutputSchemaName = ''dbo''
+		, @OutputTableName = ''sp_Blitz_output''', 
+		@database_name=N'master', 
+		@flags=0
+GO
+USE [msdb]
+GO
+EXEC msdb.dbo.sp_add_jobstep @job_name=N'RunDiagnostics', @step_name=N'Run sqlsteward to table', 
+		@step_id=2, 
+		@cmdexec_success_code=0, 
+		@on_success_action=3, 
+		@on_fail_action=2, 
+		@retry_attempts=0, 
+		@retry_interval=0, 
+		@os_run_priority=0, @subsystem=N'TSQL', 
+		@command=N'EXEC master.[dbo].[sqlsteward] 
+		@TopQueries = 50
+		, @FTECost  = 60000
+		, @ShowQueryPlan = 1
+		, @PrepForExport = 1
+		, @Export = ''Table'' 
+		, @ExportSchema   = ''dbo''
+		, @ExportDBName = ''master''
+		, @ExportTableName = ''sqlsteward_output''
+		, @ExportCleanupDays  = 180
+', 
+		@database_name=N'master', 
+		@flags=0
+GO
+USE [msdb]
+GO
+EXEC msdb.dbo.sp_add_jobstep @job_name=N'RunDiagnostics', @step_name=N'End', 
+		@step_id=3, 
+		@cmdexec_success_code=0, 
+		@on_success_action=1, 
+		@on_fail_action=2, 
+		@retry_attempts=0, 
+		@retry_interval=0, 
+		@os_run_priority=0, @subsystem=N'TSQL', 
+		@command=N'PRINT ''End''', 
+		@database_name=N'master', 
+		@flags=0
+GO
+USE [msdb]
+GO
+EXEC msdb.dbo.sp_update_job @job_name=N'RunDiagnostics', 
+		@enabled=1, 
+		@start_step_id=1, 
+		@notify_level_eventlog=0, 
+		@notify_level_email=2, 
+		@notify_level_netsend=2, 
+		@notify_level_page=2, 
+		@delete_level=0, 
+		@description=N'', 
+		@category_name=N'[Uncategorized (Local)]', 
+		@owner_login_name=N'sa', 
+		@notify_email_operator_name=N'', 
+		@notify_netsend_operator_name=N'', 
+		@notify_page_operator_name=N''
+GO
+USE [msdb]
+GO
+DECLARE @schedule_id int
+EXEC msdb.dbo.sp_add_jobschedule @job_name=N'RunDiagnostics', @name=N'LEXEL - Weekly Diagnostics', 
+		@enabled=1, 
+		@freq_type=8, 
+		@freq_interval=1, 
+		@freq_subday_type=1, 
+		@freq_subday_interval=0, 
+		@freq_relative_interval=0, 
+		@freq_recurrence_factor=1, 
+		@active_start_date=20180404, 
+		@active_end_date=99991231, 
+		@active_start_time=60000, 
+		@active_end_time=235959, @schedule_id = @schedule_id OUTPUT
+select @schedule_id
+GO
+
+*/
 

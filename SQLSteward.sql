@@ -605,14 +605,14 @@ https://support.microsoft.com/api/lifecycle/GetProductsLifecycle?query=%7B"names
 	IF @SQLproductlevel = 'RTM'
 		SET @SQLproductlevel = '';
 	
-	SELECT @SQLVersionText =REPLACE( 'Microsoft SQL Server '
+	SELECT @SQLVersionText ='Microsoft SQL Server '
 	+  LEFT(REPLACE(@@VERSION,'Microsoft SQL Server ',''),CHARINDEX('(',REPLACE(@@VERSION,'Microsoft SQL Server ',''))-2)
-    + REPLACE( @SQLproductlevel ,'SP',' Service Pack '),' ' ,'%2520');
+    + REPLACE( @SQLproductlevel ,'SP',' Service Pack ');
 	
 
 	DECLARE @URLofAwesomeUpdateInformation NVARCHAR(500);
 	--https://support.microsoft.com/api/lifecycle/GetProductsLifecycle?query=%7B"names":%5B"Microsoft%2520SQL%2520Server%25202012%2520Service%2520Pack%25203"%5D,"years":"0","gdsId":0,"export":true%7D
-	SET @URLofAwesomeUpdateInformation = 'https://support.microsoft.com/api/lifecycle/GetProductsLifecycle?query=%7B%22names%22:%5B%22' + @SQLVersionText + '%22%5D,%22years%22:%220%22,%22gdsId%22:0,%22export%22:true%7D'
+	SET @URLofAwesomeUpdateInformation = 'https://support.microsoft.com/api/lifecycle/GetProductsLifecycle?query=%7B%22names%22:%5B%22' + REPLACE(@SQLVersionText,' ' ,'%2520') + '%22%5D,%22years%22:%220%22,%22gdsId%22:0,%22export%22:true%7D'
 
 	SET @pstext = '$url=''' + @URLofAwesomeUpdateInformation + ''';$output =''C:\temp\sqlversiontest.csv'' ;'
 	SET @pstext = @pstext + 'Out-File -FilePath $output ;'
@@ -657,6 +657,8 @@ https://support.microsoft.com/api/lifecycle/GetProductsLifecycle?query=%7B"names
 		+ ISNULL('; [Service Pack Support End Date]:' + [Service Pack Support End Date],'')
 		, CASE WHEN CONVERT(DATETIME,ISNULL(ISNULL([Mainstream Support End Date],[Extended Support End Date]),[Service Pack Support End Date])) < GETDATE() THEN @Result_YourServerIsDead ELSE @Result_Good END 
 	FROM #SQLVersions
+	WHERE [Products Released] = @SQLVersionText
+ 
 	
 
 

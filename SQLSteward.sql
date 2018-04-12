@@ -602,16 +602,24 @@ https://support.microsoft.com/api/lifecycle/GetProductsLifecycle?query=%7B"names
 	DECLARE @SQLVersionText NVARCHAR(200)
 
 	SELECT @SQLproductlevel = CONVERT(VARCHAR(50),SERVERPROPERTY ('productlevel'))
+	IF @SQLproductlevel = 'RTM'
+		SET @SQLproductlevel = '';
 	
 	SELECT @SQLVersionText =REPLACE( 'Microsoft SQL Server '
-	+  LEFT(REPLACE(@@VERSION,'Microsoft SQL Server ',''),4)
-    + REPLACE( @SQLproductlevel ,'SP',' Service Pack '),' ' ,'%2520')
+	+  LEFT(REPLACE(@@VERSION,'Microsoft SQL Server ',''),CHARINDEX('(',REPLACE(@@VERSION,'Microsoft SQL Server ',''))-2)
+    + REPLACE( @SQLproductlevel ,'SP',' Service Pack '),' ' ,'%2520');
+	
 
-	DECLARE @URLofAwesomeUpdateInformation NVARCHAR(500)
+	DECLARE @URLofAwesomeUpdateInformation NVARCHAR(500);
 	--https://support.microsoft.com/api/lifecycle/GetProductsLifecycle?query=%7B"names":%5B"Microsoft%2520SQL%2520Server%25202012%2520Service%2520Pack%25203"%5D,"years":"0","gdsId":0,"export":true%7D
 	SET @URLofAwesomeUpdateInformation = 'https://support.microsoft.com/api/lifecycle/GetProductsLifecycle?query=%7B%22names%22:%5B%22' + @SQLVersionText + '%22%5D,%22years%22:%220%22,%22gdsId%22:0,%22export%22:true%7D'
 
 	SET @pstext = '$url=''' + @URLofAwesomeUpdateInformation + ''';$output =''C:\temp\sqlversiontest.csv'' ;'
+	SET @pstext = @pstext + 'Out-File -FilePath $output ;'
+	SET @pstext = @pstext + '$Acl = Get-Acl $output;'
+	SET @pstext = @pstext + '$Ar = New-Object  system.security.accesscontrol.filesystemaccessrule(''everyone'',''FullControl'',''Allow'');'
+	SET @pstext = @pstext + '$Acl.SetAccessRule($Ar);'
+	SET @pstext = @pstext + 'Set-Acl $output $Acl;'		
 	SET @pstext = @pstext + ';$Download = (new-object System.Net.WebClient).DownloadFile($url, $output);'
 	SET @pstext = @pstext + '$new = Import-Csv $output;	foreach($r in $new){'
 	SET @pstext = @pstext + '$r.''Products Released''; $r.''Lifecycle Start Date''; $r.''Mainstream Support End Date'';$r.''Extended Support End Date'';$r.''Service Pack Support End Date''};'

@@ -605,9 +605,17 @@ https://support.microsoft.com/api/lifecycle/GetProductsLifecycle?query=%7B"names
 	IF @SQLproductlevel = 'RTM'
 		SET @SQLproductlevel = '';
 	
-	SELECT @SQLVersionText ='Microsoft SQL Server '
-	+  LEFT(REPLACE(@@VERSION,'Microsoft SQL Server ',''),CHARINDEX('(',REPLACE(@@VERSION,'Microsoft SQL Server ',''))-2)
-    + REPLACE( @SQLproductlevel ,'SP',' Service Pack ');
+
+	DECLARE @TrimVersion VARCHAR(250)
+	SET @TrimVersion = RTRIM(LTRIM(REPLACE(LEFT(@@VERSION,PATINDEX('% - %',@@VERSION)), 'Microsoft SQL Server ','')))
+	
+	SELECT @SQLVersionText =  'Microsoft SQL Server ' +
+	CASE 
+	WHEN CHARINDEX('(',@TrimVersion) > 0
+		THEN LEFT(@TrimVersion,CHARINDEX('(',@TrimVersion)-2)
+	ELSE @TrimVersion
+		END
+		+ REPLACE( @SQLproductlevel ,'SP',' Service Pack ')
 	
 
 	DECLARE @URLofAwesomeUpdateInformation NVARCHAR(500);
@@ -657,11 +665,13 @@ https://support.microsoft.com/api/lifecycle/GetProductsLifecycle?query=%7B"names
 		+ ISNULL('; [Service Pack Support End Date]:' + [Service Pack Support End Date],'')
 		, CASE WHEN CONVERT(DATETIME,ISNULL(ISNULL([Mainstream Support End Date],[Extended Support End Date]),[Service Pack Support End Date])) < GETDATE() THEN @Result_YourServerIsDead ELSE @Result_Good END 
 	FROM #SQLVersions
-	WHERE [Products Released] = @SQLVersionText
- 
+	WHERE [Products Released] = 
+	CASE 
+	WHEN @SQLproductlevel = '' 
+		THEN @SQLVersionText + ' Standard'
+	ELSE @SQLVersionText
+	END
 	
-
-
 	RAISERROR (N'Evaluated build support end date',0,1) WITH NOWAIT;
 	
 	

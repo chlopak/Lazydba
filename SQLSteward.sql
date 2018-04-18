@@ -863,14 +863,7 @@ https://support.microsoft.com/api/lifecycle/GetProductsLifecycle?query=%7B"names
 		+ ''+  CASE WHEN is_concat_null_yields_null_on = 0 THEN '; SET concat_null_yields_null OFF' ELSE '' END
 		+ ''+  CASE WHEN is_numeric_roundabort_on = 1 THEN '; SET is_numeric_roundabort_on ON' ELSE '' END
 		FROM sys.databases
-		WHERE is_ansi_nulls_on = 0
-		OR is_ansi_padding_on= 0
-		OR is_ansi_warnings_on= 0
-		OR is_arithabort_on= 0
-		OR is_concat_null_yields_null_on= 0
-		OR is_numeric_roundabort_on= 1
-		OR is_quoted_identifier_on= 0
-		OR [compatibility_level] < 110
+
 	END
 
 	IF EXISTS(SELECT * FROM #whatsets)
@@ -3313,6 +3306,21 @@ From Tasks;
 	OPTION (RECOMPILE);
 
 	RAISERROR (N'Daily workload calculated',0,1) WITH NOWAIT;
+	
+
+			/*----------------------------------------
+			--Create DMA commands
+			----------------------------------------*/
+	INSERT #output_man_script (SectionID, Section,Summary, Details) SELECT 31, 'Database Migration Assistant commands','------','------'
+	INSERT #output_man_script (SectionID, Section,Summary,Details)
+
+	SELECT 31, 'DMA', 'Run in PowerShell', '.\DmaCmd.exe /AssessmentName="' + @@SERVERNAME + '_' + name + '" /AssessmentDatabases="Server=' + @@SERVERNAME 
+		+ ';Initial Catalog=' + name + ';Integrated Security=true" /AssessmentEvaluateCompatibilityIssues /AssessmentOverwriteResult /AssessmentTargetPlatform="SqlServerWindows2017" /AssessmentResultCsv="'
+		+ 'C:\Temp\DMA\AssessmentReport_' + REPLACE(@@SERVERNAME,'\','_') + '_' + name + '.csv"'
+		 FROM sys.databases
+		WHERE database_id > 4
+
+	RAISERROR (N'Create DMA commands',0,1) WITH NOWAIT;
 
 			/*----------------------------------------
 			--select output
@@ -3382,6 +3390,9 @@ BEGIN
 	EXEC sp_executesql @dynamicSQL;	
 
 END
+
+
+
 
 	IF OBJECT_ID('tempdb.#output_man_script') IS NOT NULL
 		DROP TABLE #output_man_script  

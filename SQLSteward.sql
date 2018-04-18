@@ -10,10 +10,10 @@ ALTER PROCEDURE [dbo].[sqlsteward]
 , @MinExecutionCount TINYINT  = 1 /*This can go to 0 for more details, but first attend to often used queries. Run this with 0 before making any big decisions*/
 , @ShowQueryPlan TINYINT  = 1 /*Set to 1 to include the Query plan in the output*/
 , @PrepForExport TINYINT  = 1 /*When the intent of this script is to use this for some type of hocus-pocus magic metrics, set this to 1*/
-, @Export VARCHAR(10) = 'Table' /*Screen / Table*/
-, @ExportSchema VARCHAR(10)  = 'dbo'
-, @ExportDBName  VARCHAR(20) = 'master'
-, @ExportTableName VARCHAR(20) = 'sqlsteward_output'
+, @Export NVARCHAR(10) = 'Table' /*Screen / Table*/
+, @ExportSchema NVARCHAR(10)  = 'dbo'
+, @ExportDBName  NVARCHAR(20) = 'master'
+, @ExportTableName NVARCHAR(20) = 'sqlsteward_output'
 , @ExportCleanupDays INT = 180
 WITH RECOMPILE
 AS
@@ -133,8 +133,11 @@ BEGIN
 	DECLARE @EndTest DATETIME; 
 	DECLARE @ThisistoStandardisemyOperatorCostMate INT;
 	DECLARE @secondsperoperator FLOAT;
-	DECLARE @totalMemoryGB MONEY, @AvailableMemoryGB MONEY, @UsedMemory MONEY;
-	DECLARE @VMType VARCHAR(200), @ServerType VARCHAR(20);
+	DECLARE @totalMemoryGB MONEY
+	DECLARE @AvailableMemoryGB MONEY
+	DECLARE @UsedMemory MONEY;
+	DECLARE @VMType NVARCHAR(200)
+	DECLARE @ServerType NVARCHAR(20);
 	DECLARE @MaxRamServer INT,@SQLVersion tinyint;
 	DECLARE @ts BIGINT;
 	DECLARE @Kb FLOAT;
@@ -160,17 +163,17 @@ BEGIN
 	SET @starttime = GETDATE()
 
 	SELECT @SQLVersion = @@MicrosoftVersion / 0x01000000  OPTION (RECOMPILE)-- Get major version
-	DECLARE @sqlrun NVARCHAR(4000), @rebuildonline VARCHAR(30), @isEnterprise INT, @i_Count INT, @i_Max INT;
+	DECLARE @sqlrun NVARCHAR(4000), @rebuildonline NVARCHAR(30), @isEnterprise INT, @i_Count INT, @i_Max INT;
 
 	
 
 	DECLARE @FileSize TABLE
 	(  
 		DatabaseName sysname 
-		, [FileName] VARCHAR(MAX) NULL
+		, [FileName] NVARCHAR(4000) NULL
 		, FileSize BIGINT NULL
-		, FileGroupName VARCHAR(MAX) NULL
-		, LogicalName VARCHAR(MAX) NULL
+		, FileGroupName NVARCHAR(4000)NULL
+		, LogicalName NVARCHAR(4000) NULL
 		, maxsize MONEY NULL
 		, growth MONEY NULL
 	);
@@ -180,12 +183,12 @@ BEGIN
 		, FileGroup INT  NULL
 		, TotalExtents INT  NULL
 		, UsedExtents INT  NULL
-		, LogicalName VARCHAR(MAX)  NULL
-		, FileName VARCHAR(MAX)  NULL
+		, LogicalName NVARCHAR(4000)  NULL
+		, FileName NVARCHAR(4000)  NULL
 	);
 	DECLARE @LogSpace TABLE 
 	( 
-		DatabaseName sysname NULL
+		DatabaseName NVARCHAR(500) NULL
 		, LogSize FLOAT NULL
 		, SpaceUsedPercent FLOAT NULL
 		, Status bit NULL
@@ -195,11 +198,11 @@ BEGIN
 				DROP TABLE #NeverUsedIndex;
 			CREATE TABLE #NeverUsedIndex 
 			(
-				DB VARCHAR(250)
-				,Consideration VARCHAR(50)
-				,TableName VARCHAR(50)
-				,TypeDesc VARCHAR(50)
-				,IndexName VARCHAR(250)
+				DB NVARCHAR(250)
+				,Consideration NVARCHAR(50)
+				,TableName NVARCHAR(50)
+				,TypeDesc NVARCHAR(50)
+				,IndexName NVARCHAR(250)
 				,Updates BIGINT
 				,last_user_scan DATETIME
 				,last_user_seek DATETIME
@@ -210,9 +213,9 @@ BEGIN
 				DROP TABLE #HeapTable;
 			CREATE TABLE #HeapTable 
 			( 
-				DB VARCHAR(250)
-				, [schema] VARCHAR(250)
-				, [table] VARCHAR(250)
+				DB NVARCHAR(250)
+				, [schema] NVARCHAR(250)
+				, [table] NVARCHAR(250)
 				, [rows] BIGINT
 				, user_seeks BIGINT
 				, user_scans BIGINT
@@ -238,11 +241,11 @@ BEGIN
 			CREATE TABLE #Action_Statistics 
 			(
 				Id INT IDENTITY(1,1)
-				, DBname VARCHAR(100)
-				, TableName VARCHAR(100)
+				, DBname NVARCHAR(100)
+				, TableName NVARCHAR(100)
 				, StatsID TINYINT
-				, StatisticsName VARCHAR(500)
-				, SchemaName VARCHAR(100)
+				, StatisticsName NVARCHAR(500)
+				, SchemaName NVARCHAR(100)
 				, ModificationCount BIGINT
 				, LastUpdated DATETIME
 				, [Rows] BIGINT
@@ -252,13 +255,13 @@ BEGIN
 				DROP TABLE #MissingIndex;
 			CREATE TABLE #MissingIndex 
 			(
-				DB VARCHAR(250)
+				DB NVARCHAR(250)
 				, magic_benefit_number FLOAT
-				, [Table] VARCHAR(2000)
-				, ChangeIndexStatement VARCHAR(4000)
-				, equality_columns VARCHAR(4000)
-				, inequality_columns VARCHAR(4000)
-				, included_columns VARCHAR(4000)
+				, [Table] NVARCHAR(2000)
+				, ChangeIndexStatement NVARCHAR(4000)
+				, equality_columns NVARCHAR(4000)
+				, inequality_columns NVARCHAR(4000)
+				, included_columns NVARCHAR(4000)
 				, [BeingClever] NVARCHAR(4000)
 			);
 
@@ -267,13 +270,13 @@ BEGIN
 			CREATE TABLE #output_man_script 
 			(
 				evaldate DATETIME DEFAULT GETDATE()
-				, domain VARCHAR(50) DEFAULT DEFAULT_DOMAIN()
-				, SQLInstance VARCHAR(50) DEFAULT @@SERVERNAME
+				, domain NVARCHAR(50) DEFAULT DEFAULT_DOMAIN()
+				, SQLInstance NVARCHAR(50) DEFAULT @@SERVERNAME
 				, SectionID TINYINT NULL
-				, Section VARCHAR(MAX)
-				, Summary VARCHAR(MAX)
+				, Section NVARCHAR(4000)
+				, Summary NVARCHAR(4000)
 				, Severity NVARCHAR(5)
-				, Details VARCHAR(MAX)
+				, Details NVARCHAR(4000)
 				, QueryPlan XML NULL
 				, HoursToResolveWithTesting MONEY NULL
 				, ID INT IDENTITY(1,1)
@@ -290,7 +293,7 @@ BEGIN
 				DROP TABLE #db_sps;
 	CREATE TABLE #db_sps 
 				(
-					[dbname] VARCHAR(500)
+					[dbname] NVARCHAR(500)
 					, [SP Name] NVARCHAR(4000)
 					, [TotalLogicalWrites] BIGINT
 					, [AvgLogicalWrites] BIGINT
@@ -322,19 +325,19 @@ BEGIN
 				DROP TABLE #notrust
 	CREATE TABLE #notrust
 				(
-				  KeyType VARCHAR(20)
-				, Tablename VARCHAR(500)
-				, KeyName VARCHAR(500)
-				, DBCCcommand VARCHAR(2000)
-				, Fix VARCHAR(2000)
+				  KeyType NVARCHAR(20)
+				, Tablename NVARCHAR(500)
+				, KeyName NVARCHAR(500)
+				, DBCCcommand NVARCHAR(2000)
+				, Fix NVARCHAR(2000)
 				)
 	IF OBJECT_ID('tempdb..#whatsets') IS NOT NULL
 				DROP TABLE #whatsets
 	CREATE TABLE #whatsets
 				(
-				  DBname VARCHAR(500)
-				, [compatibility_level] VARCHAR(10)
-				, [SETs] VARCHAR(500)
+				  DBname NVARCHAR(500)
+				, [compatibility_level] NVARCHAR(10)
+				, [SETs] NVARCHAR(500)
 				)	
 
 	IF OBJECT_ID('tempdb..#dbccloginfo') IS NOT NULL
@@ -348,7 +351,7 @@ BEGIN
 	CREATE TABLE #SQLVersionsDump 
 			(
 				  ID INT IDENTITY(0,1)
-				, Output VARCHAR(250)
+				, Output NVARCHAR(250)
 			)
 	
 	IF OBJECT_ID('tempdb..#SQLVersions') IS NOT NULL
@@ -356,11 +359,11 @@ BEGIN
 	CREATE TABLE #SQLVersions 
 			(
 			  Id TINYINT
-			, [Products Released] VARCHAR(250)
-			, [Lifecycle Start Date]  VARCHAR(250)
-			, [Mainstream Support End Date]  VARCHAR(250)
-			, [Extended Support End Date]  VARCHAR(250)
-			, [Service Pack Support End Date]  VARCHAR(250)
+			, [Products Released] NVARCHAR(250)
+			, [Lifecycle Start Date]  NVARCHAR(250)
+			, [Mainstream Support End Date]  NVARCHAR(250)
+			, [Extended Support End Date]  NVARCHAR(250)
+			, [Service Pack Support End Date]  NVARCHAR(250)
 			)		
 
 	IF CONVERT(TINYINT,@SQLVersion) >= 11 -- post-SQL2012 
@@ -380,7 +383,7 @@ BEGIN
 
 
 
-	DECLARE @msversion TABLE([Index] INT, Name VARCHAR(50), [Internal_Value] VARCHAR(50), [Character_Value] VARCHAR(250))
+	DECLARE @msversion TABLE([Index] INT, Name NVARCHAR(50), [Internal_Value] NVARCHAR(50), [Character_Value] NVARCHAR(250))
 	INSERT @msversion
 	EXEC xp_msver /*Rather useful this one*/
 
@@ -393,10 +396,10 @@ BEGIN
 
 	--SELECT CONVERT(MONEY,LEFT(Character_Value,3)) FROM @msversion WHERE Name = 'WindowsVersion'
 
-	DECLARE @value VARCHAR(64);
-	DECLARE @key VARCHAR(512); 
-	DECLARE @WindowsVersion VARCHAR(50);
-	DECLARE @PowerPlan VARCHAR(20)
+	DECLARE @value NVARCHAR(64);
+	DECLARE @key NVARCHAR(512); 
+	DECLARE @WindowsVersion NVARCHAR(50);
+	DECLARE @PowerPlan NVARCHAR(20)
 	SET @key = 'SYSTEM\CurrentControlSet\Control\Power\User\PowerSchemes';
 	SELECT @WindowsVersion = CONVERT(MONEY,LEFT(Character_Value,3)) FROM @msversion WHERE Name = 'WindowsVersion'
 
@@ -407,8 +410,8 @@ BEGIN
 	IF CONVERT(DECIMAL(3,1), @WindowsVersion) >= 6.0
 	BEGIN
 	
-		DECLARE @cpu_name VARCHAR(150)
-		DECLARE @cpu_ghz VARCHAR(50)
+		DECLARE @cpu_name NVARCHAR(150)
+		DECLARE @cpu_ghz NVARCHAR(50)
 
 										
 		EXEC master.sys.xp_regread @rootkey = 'HKEY_LOCAL_MACHINE',
@@ -416,7 +419,7 @@ BEGIN
 		@value_name = 'ProcessorNameString',
 		@value = @cpu_name OUTPUT;
 										
-		SELECT @cpu_ghz = RIGHT(@cpu_name, LEN(@cpu_name)- PATINDEX('%@ %', @cpu_name) -1)
+		SELECT @cpu_ghz = CASE WHEN LEFT(@cpu_name,3) = 'AMD' THEN 'AMD' ELSE RIGHT(@cpu_name, LEN(@cpu_name)- PATINDEX('%@ %', @cpu_name) -1) END
 								
 		EXEC master..xp_regread 
 		@rootkey = 'HKEY_LOCAL_MACHINE',
@@ -475,9 +478,34 @@ BEGIN
 		,'['+REPLICATE('#', @CPUsocketcount) +'] CPU Sockets ['+REPLICATE('*', CONVERT(MONEY,(@TempDBFileCount))) +'] TempDB Files'
 		,@Result_Warning, 'Expect slow disk latency on the TempDB files'
 	END
+	
+	IF EXISTS(SELECT 1 FROM  sys.dm_os_waiting_tasks
+			Where wait_type Like 'PAGE%LATCH_%'
+			And resource_description Like '2:%')
+	BEGIN
+	INSERT #output_man_script (SectionID,Section,Summary, Severity, Details )
+	Select 0, 'You have TempDB contention', 'Session: ' + CONVERT(VARCHAR(10),ISNULL(session_id,'')) 
+			+ '; Wait Type: ' + CONVERT(VARCHAR(50), ISNULL(wait_type,''))
+			+ '; Wait Duraion: ' + CONVERT(VARCHAR(25), ISNULL(wait_duration_ms,''))
+			+ '; Blocking SPID: ' + CONVERT(VARCHAR(20), ISNULL(blocking_session_id,''))
+			+ '; Description: ' + CONVERT(VARCHAR(200), ISNULL(resource_description,''))
+			, @Result_YourServerIsDead
+			, CONVERT(VARCHAR(200), Case
+			When Cast(Right(resource_description, Len(resource_description) - Charindex(':', resource_description, 3)) As Int) - 1 % 8088 = 0 Then 'Is PFS Page'
+						When Cast(Right(resource_description, Len(resource_description) - Charindex(':', resource_description, 3)) As Int) - 2 % 511232 = 0 Then 'Is GAM Page'
+						When Cast(Right(resource_description, Len(resource_description) - Charindex(':', resource_description, 3)) As Int) - 3 % 511232 = 0 Then 'Is SGAM Page'
+						Else 'Is Not PFS, GAM, or SGAM page'
+						End
+					)
+			From sys.dm_os_waiting_tasks
+			Where wait_type Like 'PAGE%LATCH_%'
+			And resource_description Like '2:%'
+
+	END	
+			
 
 	
-	DECLARE @xp_errorlog TABLE(LogDate DATETIME,  ProcessInfo VARCHAR(250), Text NVARCHAR(500))
+	DECLARE @xp_errorlog TABLE(LogDate DATETIME,  ProcessInfo NVARCHAR(250), Text NVARCHAR(500))
 
 	INSERT @xp_errorlog
 	EXEC sys.xp_readerrorlog 0, 1, N'locked pages'
@@ -535,7 +563,7 @@ Microsoft%20SQL%20Server%202012%20Enterprise%20Service%20Pack%201
 https://support.microsoft.com/api/lifecycle/GetProductsLifecycle?query=%7B"names":%5B"Microsoft%2520SQL%2520Server%25202012%2520Service%2520Pack"%5D,"years":"0","gdsId":0,"export":true%7D
 
 */
-	DECLARE @CurrentBuild VARCHAR(50)
+	DECLARE @CurrentBuild NVARCHAR(50)
 	SELECT @CurrentBuild = [Character_Value] FROM @msversion 
 	WHERE [Name] = 'ProductVersion' 
 
@@ -606,7 +634,7 @@ https://support.microsoft.com/api/lifecycle/GetProductsLifecycle?query=%7B"names
 		SET @SQLproductlevel = '';
 	
 
-	DECLARE @TrimVersion VARCHAR(250)
+	DECLARE @TrimVersion NVARCHAR(250)
 	SET @TrimVersion = RTRIM(LTRIM(REPLACE(LEFT(@@VERSION,PATINDEX('% - %',@@VERSION)), 'Microsoft SQL Server ','')))
 	
 	SELECT @SQLVersionText =  'Microsoft SQL Server ' +
@@ -902,7 +930,7 @@ https://support.microsoft.com/api/lifecycle/GetProductsLifecycle?query=%7B"names
 	CROSS APPLY sys.dm_exec_sql_text(qs.sql_handle) qt
 	WHERE qs.total_logical_reads = 0 
 	AND qs.last_execution_time BETWEEN @StartTest AND @EndTest
-	AND PATINDEX('%ThisistoStandardisemyOperatorCostMate%',CAST(qt.TEXT AS VARCHAR(MAX))) > 0
+	AND PATINDEX('%ThisistoStandardisemyOperatorCostMate%',CAST(qt.TEXT AS NVARCHAR(MAX))) > 0
 	--OPTION (RECOMPILE);
 	PRINT N'Your cost (in seconds) per operator roughly equates to around '+ CONVERT(VARCHAR(20),ISNULL(@secondsperoperator,0)) + ' seconds' ;
 	RAISERROR (N'Benchmarking done',0,1) WITH NOWAIT;
@@ -914,14 +942,14 @@ https://support.microsoft.com/api/lifecycle/GetProductsLifecycle?query=%7B"names
 	DECLARE @Databases TABLE
 	(
 		id INT IDENTITY(1,1)
-		, databasename VARCHAR(250)
+		, databasename NVARCHAR(250)
 		, [compatibility_level] BIGINT
 		, user_access BIGINT
-		, user_access_desc VARCHAR(50)
+		, user_access_desc NVARCHAR(50)
 		, [state] BIGINT
-		, state_desc  VARCHAR(50)
+		, state_desc  NVARCHAR(50)
 		, recovery_model BIGINT
-		, recovery_model_desc  VARCHAR(50)
+		, recovery_model_desc  NVARCHAR(50)
 		, create_date DATETIME
 	);
 	SET @dynamicSQL = 'SELECT 
@@ -1098,7 +1126,7 @@ https://support.microsoft.com/api/lifecycle/GetProductsLifecycle?query=%7B"names
 			--Failed logins on the server
 			----------------------------------------*/
 
-	DECLARE @LoginLog TABLE( LogDate DATETIME, ProcessInfo VARCHAR(200), [Text] VARCHAR(MAX))
+	DECLARE @LoginLog TABLE( LogDate DATETIME, ProcessInfo NVARCHAR(200), [Text] NVARCHAR(MAX))
 	IF  @ShowWarnings = 0 
 	BEGIN
 		SET @dynamicSQL = 'EXEC sp_readerrorlog 0, 1, ''Login failed'' '
@@ -1122,7 +1150,7 @@ https://support.microsoft.com/api/lifecycle/GetProductsLifecycle?query=%7B"names
 			--Agent log for errors
 			----------------------------------------*/
 
-	DECLARE @Errorlog TABLE( LogDate DATETIME, ErrorLevel INT, [Text] VARCHAR(4000))
+	DECLARE @Errorlog TABLE( LogDate DATETIME, ErrorLevel INT, [Text] NVARCHAR(4000))
 	/*Ignore the agent logs if you cannot find it, else errors will come*/
 	BEGIN TRY
 
@@ -1208,15 +1236,15 @@ https://support.microsoft.com/api/lifecycle/GetProductsLifecycle?query=%7B"names
 				WHEN 4 THEN 'In progress'
 			  END
 			) as run_status
-			,((SUBSTRING(CAST(DBSysJobHistory.run_date AS VARCHAR(8)), 5, 2) + '/'
-			  + SUBSTRING(CAST(DBSysJobHistory.run_date AS VARCHAR(8)), 7, 2) + '/'
-			  + SUBSTRING(CAST(DBSysJobHistory.run_date AS VARCHAR(8)), 1, 4) + ' '
-			  + SUBSTRING((REPLICATE('0',6-LEN(CAST(DBSysJobHistory.run_time AS VARCHAR)))
-			  + CAST(DBSysJobHistory.run_time AS VARCHAR)), 1, 2) + ':'
-			  + SUBSTRING((REPLICATE('0',6-LEN(CAST(DBSysJobHistory.run_time AS VARCHAR)))
-			  + CAST(DBSysJobHistory.run_time AS VARCHAR)), 3, 2) + ':'
-			  + SUBSTRING((REPLICATE('0',6-LEN(CAST(DBSysJobHistory.run_time as VARCHAR)))
-			  + CAST(DBSysJobHistory.run_time AS VARCHAR)), 5, 2))) [exec_date]
+			,((SUBSTRING(CAST(DBSysJobHistory.run_date AS NVARCHAR(8)), 5, 2) + '/'
+			  + SUBSTRING(CAST(DBSysJobHistory.run_date AS NVARCHAR(8)), 7, 2) + '/'
+			  + SUBSTRING(CAST(DBSysJobHistory.run_date AS NVARCHAR(8)), 1, 4) + ' '
+			  + SUBSTRING((REPLICATE('0',6-LEN(CAST(DBSysJobHistory.run_time AS NVARCHAR)))
+			  + CAST(DBSysJobHistory.run_time AS NVARCHAR)), 1, 2) + ':'
+			  + SUBSTRING((REPLICATE('0',6-LEN(CAST(DBSysJobHistory.run_time AS NVARCHAR)))
+			  + CAST(DBSysJobHistory.run_time AS NVARCHAR)), 3, 2) + ':'
+			  + SUBSTRING((REPLICATE('0',6-LEN(CAST(DBSysJobHistory.run_time as NVARCHAR)))
+			  + CAST(DBSysJobHistory.run_time AS NVARCHAR)), 5, 2))) [exec_date]
 			,DBSysJobHistory.run_duration
 			,DBSysJobHistory.retries_attempted
 			,DBSysJobHistory.server
@@ -1361,7 +1389,7 @@ https://support.microsoft.com/api/lifecycle/GetProductsLifecycle?query=%7B"names
 			--Check for disk space and latency on the server
 			----------------------------------------*/
 
-	DECLARE @fixeddrives TABLE(drive VARCHAR(5), FreeSpaceMB MONEY)
+	DECLARE @fixeddrives TABLE(drive NVARCHAR(5), FreeSpaceMB MONEY)
 	INSERT @fixeddrives
 	EXEC master..xp_fixeddrives 
 
@@ -1463,6 +1491,7 @@ https://support.microsoft.com/api/lifecycle/GetProductsLifecycle?query=%7B"names
 
 	INSERT @LogSpace 
 	EXEC sp_executesql N'DBCC sqlperf(logspace) WITH NO_INFOMSGS';
+	
 	INSERT #LogSpace
 	SELECT DatabaseName
 	, LogSize
@@ -1995,7 +2024,7 @@ SELECT 14,  REPLICATE('|',CONVERT(MONEY,T2.[TotalIO])/ SUM(T2.[TotalIO]) OVER()*
 		CROSS APPLY sys.dm_exec_query_plan(T1.plan_handle) qp
 		CROSS APPLY sys.dm_exec_sql_text(T1.sql_handle) qt
 		WHERE T1.Id <= @TopQueries
-		--WHERE PATINDEX('%MissingIndex%',CAST(query_plan AS VARCHAR(MAX))) > 0
+		--WHERE PATINDEX('%MissingIndex%',CAST(query_plan AS NVARCHAR(MAX))) > 0
 		ORDER BY CASE WHEN  PATINDEX('%MissingIndexes%',CAST(qp.query_plan AS NVARCHAR(MAX)))  > 0 THEN 1 ELSE 0 END DESC
 		,CASE WHEN  PATINDEX('%MissingIndexes%',CAST(qp.query_plan AS NVARCHAR(MAX))) > 0 
 		 THEN  PATINDEX('%MissingIndexes%',CAST(qp.query_plan AS NVARCHAR(MAX))) * [Total_MBsRead]  ELSE 0 END DESC 
@@ -2022,7 +2051,10 @@ SELECT 14,  REPLICATE('|',CONVERT(MONEY,T2.[TotalIO])/ SUM(T2.[TotalIO]) OVER()*
 			+ CHAR(13) + CHAR(10) +''< be clever here > ''
 			+ CHAR(13) + CHAR(10) + '')''
 			+ CHAR(13) + CHAR(10) + ISNULL(''INCLUDE ('' + mid.included_columns + '')'','''')
+			' /* Don't be too clever now.
 			+ CHAR(13) + CHAR(10) + ''WITH (PAD_INDEX  = OFF, STATISTICS_NORECOMPUTE  = OFF, SORT_IN_TEMPDB = ON, IGNORE_DUP_KEY = OFF, DROP_EXISTING = OFF, ONLINE = '+@rebuildonline+', ALLOW_ROW_LOCKS  = ON, ALLOW_PAGE_LOCKS  = ON,FILLFACTOR = 98) ON [PRIMARY];''
+			*/
+			+ '
 			, mid.equality_columns
 			, mid.inequality_columns
 			, mid.included_columns
@@ -2271,7 +2303,7 @@ SELECT 14,  REPLICATE('|',CONVERT(MONEY,T2.[TotalIO])/ SUM(T2.[TotalIO]) OVER()*
 			WHEN LOG(T1.magic_benefit_number) >= 13 AND LOG(T1.magic_benefit_number) < 20 THEN @Result_YourServerIsDead  
 			WHEN LOG(T1.magic_benefit_number) >= 20  THEN @Result_ReallyBad
 			END
-			, T2.[SETs] + '; ' + CHAR(13) + CHAR(10)  +'SELECT '''  + CHAR(13) + CHAR(10) + REPLACE(T1.ChangeIndexStatement,'< be clever here >', ' ''+ ('+  BeingClever + ') + '' ') + ''' '
+			, T2.[SETs] + '; ' + CHAR(13) + CHAR(10)  +'UNION ALL SELECT '''  + CHAR(13) + CHAR(10) + REPLACE(T1.ChangeIndexStatement,'< be clever here >', ' ''+ ('+  BeingClever + ') + '' ') + ''' '
 			, CASE 
 			WHEN LOG(T1.magic_benefit_number) >= 10 AND LOG(T1.magic_benefit_number) < 12 THEN 1
 			WHEN LOG(T1.magic_benefit_number) >= 12 AND LOG(T1.magic_benefit_number) < 14 THEN 2
@@ -2603,8 +2635,8 @@ SELECT 14,  REPLICATE('|',CONVERT(MONEY,T2.[TotalIO])/ SUM(T2.[TotalIO]) OVER()*
 			----------------------------------------*/
 	
 
-DECLARE @confidence TABLE (DBName VARCHAR(500), EstHoursSinceActive BIGINT)
-DECLARE @ConfidenceLevel TABLE ( Bionmial MONEY, ConfidenceLevel VARCHAR(10))
+DECLARE @confidence TABLE (DBName NVARCHAR(500), EstHoursSinceActive BIGINT)
+DECLARE @ConfidenceLevel TABLE ( Bionmial MONEY, ConfidenceLevel NVARCHAR(10))
 INSERT INTO @ConfidenceLevel VALUES(1.96,'95%')
 
 SET @lastservericerestart = (SELECT create_date FROM sys.databases WHERE name = 'tempdb');
@@ -2759,13 +2791,13 @@ From Tasks;
 		CREATE TABLE #LEXEL_OES_stats_sql_handle_convert_table (
 				 row_id INT identity 
 				, t_sql_handle varbinary(64)
-				, t_display_option varchar(140) collate database_default
-				, t_display_optionIO varchar(140) collate database_default
-				, t_sql_handle_text varchar(140) collate database_default
+				, t_display_option NVARCHAR(140) collate database_default
+				, t_display_optionIO NVARCHAR(140) collate database_default
+				, t_sql_handle_text NVARCHAR(140) collate database_default
 				, t_SPRank INT
 				, t_dbid INT
 				, t_objectid INT
-				, t_SQLStatement varchar(max) collate database_default
+				, t_SQLStatement NVARCHAR(max) collate database_default
 				, t_execution_count INT
 				, t_plan_generation_num INT
 				, t_last_execution_time datetime
@@ -2824,20 +2856,20 @@ From Tasks;
 		CREATE TABLE #LEXEL_OES_stats_output(
 			ID INT IDENTITY(1,1)
 			, evaldate DATETIME DEFAULT GETDATE()
-			, domain VARCHAR(50) DEFAULT DEFAULT_DOMAIN()
-			, SQLInstance VARCHAR(50) DEFAULT @@SERVERNAME
-			, [Type] varchar(25) NOT NULL
+			, domain NVARCHAR(50) DEFAULT DEFAULT_DOMAIN()
+			, SQLInstance NVARCHAR(50) DEFAULT @@SERVERNAME
+			, [Type] NVARCHAR(25) NOT NULL
 			, l1 INT NULL
 			, l2 BIGINT NULL
 			, row_id INT NOT NULL
-			, t_obj_name VARCHAR(250)  NULL
-			, t_obj_type VARCHAR(250)  NULL
-			, [schema_name] VARCHAR(250)  NULL
-			, t_db_name VARCHAR(250) NULL
+			, t_obj_name NVARCHAR(250)  NULL
+			, t_obj_type NVARCHAR(250)  NULL
+			, [schema_name] NVARCHAR(250)  NULL
+			, t_db_name NVARCHAR(250) NULL
 			, t_sql_handle varbinary(64) NULL
 			, t_SPRank INT NULL
 			, t_SPRank2 INT NULL
-			, t_SQLStatement varchar(max) NULL
+			, t_SQLStatement NVARCHAR(max) NULL
 			, t_execution_count INT NULL
 			, t_plan_generation_num INT NULL
 			, t_last_execution_time datetime NULL
@@ -2986,7 +3018,7 @@ From Tasks;
 	SET @cnt = 0; 
 	SET @record_count = 0; 
 	declare @sql_handle varbinary(64); 
-	declare @sql_handle_string varchar(130); 
+	declare @sql_handle_string NVARCHAR(130); 
 	SET @grand_total_worker_time = 0 ; 
 	SET @grand_total_IO = 0 ; 
 
@@ -2995,12 +3027,12 @@ From Tasks;
 	CREATE TABLE #sql_handle_convert_table (
 	 row_id INT identity 
 	, t_sql_handle varbinary(64)
-	, t_display_option varchar(140) collate database_default
-	, t_display_optionIO varchar(140) collate database_default
-	, t_sql_handle_text varchar(140) collate database_default
+	, t_display_option NVARCHAR(140) collate database_default
+	, t_display_optionIO NVARCHAR(140) collate database_default
+	, t_sql_handle_text NVARCHAR(140) collate database_default
 	, t_SPRank INT
 	, t_SPRank2 INT
-	, t_SQLStatement varchar(max) collate database_default
+	, t_SQLStatement NVARCHAR(max) collate database_default
 	, t_execution_count INT 
 	, t_plan_generation_num INT
 	, t_last_execution_time datetime
@@ -3355,10 +3387,10 @@ BEGIN
 	, domain NVARCHAR(50)
 	, SQLInstance NVARCHAR(50)
 	, SectionID TINYINT
-	, Section VARCHAR(MAX)
-	, Summary VARCHAR(MAX)
+	, Section NVARCHAR(MAX)
+	, Summary NVARCHAR(MAX)
 	, Severity NVARCHAR(5)
-	, Details VARCHAR(MAX)
+	, Details NVARCHAR(MAX)
 	, HoursToResolveWithTesting MONEY
 	, QueryPlan NVARCHAR(MAX)
 	);'	

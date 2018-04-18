@@ -40,7 +40,7 @@ INSERT INTO @References VALUES ('Jon M Crawford','https://www.sqlservercentral.c
 INSERT INTO @References VALUES ('Robert L Davis','http://www.sqlsoldier.com/wp/sqlserver/breakingdowntempdbcontentionpart2','')
 INSERT INTO @References VALUES ('Jonathan Kehayias','https://www.red-gate.com/simple-talk/sql/database-administration/great-sql-server-debates-lock-pages-in-memory/','For locked pages guidance')
 INSERT INTO @REFERENCES VALUES ('Laerte Junior','https://www.red-gate.com/simple-talk/sql/database-administration/the-posh-dba-solutions-using-powershell-and-sql-server/','For doing PowerShell magic in SQL')
-
+INSERT INTO @REFERENCES VALUES ('Robert Davis','http://www.sqlservercentral.com/blogs/robert_davis/2010/03/05/Breaking-Down-TempDB-Contention/','TempDB contention')
 
 SET NOCOUNT ON
 SET ANSI_WARNINGS ON

@@ -206,7 +206,7 @@ BEGIN
 				,Updates BIGINT
 				,last_user_scan DATETIME
 				,last_user_seek DATETIME
-				,Pages BIGINT
+				
 			)
 
 	IF OBJECT_ID('tempdb..#HeapTable') IS NOT NULL
@@ -270,8 +270,8 @@ BEGIN
 			CREATE TABLE #output_man_script 
 			(
 				evaldate DATETIME DEFAULT GETDATE()
-				, domain NVARCHAR(50) DEFAULT DEFAULT_DOMAIN()
-				, SQLInstance NVARCHAR(50) DEFAULT @@SERVERNAME
+				, domain NVARCHAR(505) DEFAULT DEFAULT_DOMAIN()
+				, SQLInstance NVARCHAR(505) DEFAULT @@SERVERNAME
 				, SectionID TINYINT NULL
 				, Section NVARCHAR(4000)
 				, Summary NVARCHAR(4000)
@@ -471,12 +471,12 @@ BEGIN
 	END
 	
 	
-	IF @TempDBFileCount > @CPUsocketcount
+	IF @TempDBFileCount >= @CPUsocketcount AND @CPUsocketcount > 1
 	BEGIN
 		INSERT #output_man_script (SectionID,Section,Summary, Severity, Details )
 		SELECT 0,  +'Interesting TempDB file count' 
 		,'['+REPLICATE('#', @CPUsocketcount) +'] CPU Sockets ['+REPLICATE('*', CONVERT(MONEY,(@TempDBFileCount))) +'] TempDB Files'
-		,@Result_Warning, 'Expect slow disk latency on the TempDB files'
+		,@Result_Warning, 'Migth lead to slow disk latency on the TempDB files'
 	END
 	
 	IF EXISTS(SELECT 1 FROM  sys.dm_os_waiting_tasks
@@ -484,12 +484,17 @@ BEGIN
 			And resource_description Like '2:%')
 	BEGIN
 	INSERT #output_man_script (SectionID,Section,Summary, Severity, Details )
-	Select 0, 'You have TempDB contention', 'Session: ' + CONVERT(VARCHAR(10),ISNULL(session_id,'')) 
+	Select 0, 'Testing latches in TempDB', 'Session: ' + CONVERT(VARCHAR(10),ISNULL(session_id,'')) 
 			+ '; Wait Type: ' + CONVERT(VARCHAR(50), ISNULL(wait_type,''))
 			+ '; Wait Duraion: ' + CONVERT(VARCHAR(25), ISNULL(wait_duration_ms,''))
 			+ '; Blocking SPID: ' + CONVERT(VARCHAR(20), ISNULL(blocking_session_id,''))
 			+ '; Description: ' + CONVERT(VARCHAR(200), ISNULL(resource_description,''))
-			, @Result_YourServerIsDead
+			, Case
+                     When Cast(Right(resource_description, Len(resource_description) - Charindex(':', resource_description, 3)) As Int) - 1 % 8088 = 0 Then @Result_Warning
+                                         When Cast(Right(resource_description, Len(resource_description) - Charindex(':', resource_description, 3)) As Int) - 2 % 511232 = 0 Then @Result_Warning
+                                         When Cast(Right(resource_description, Len(resource_description) - Charindex(':', resource_description, 3)) As Int) - 3 % 511232 = 0 Then @Result_Warning
+                                         Else @Result_Good
+                                         End 
 			, CONVERT(VARCHAR(200), Case
 			When Cast(Right(resource_description, Len(resource_description) - Charindex(':', resource_description, 3)) As Int) - 1 % 8088 = 0 Then 'Is PFS Page'
 						When Cast(Right(resource_description, Len(resource_description) - Charindex(':', resource_description, 3)) As Int) - 2 % 511232 = 0 Then 'Is GAM Page'
@@ -675,10 +680,10 @@ https://support.microsoft.com/api/lifecycle/GetProductsLifecycle?query=%7B"names
 	, CASE WHEN LEFT(T4.Output,3) = 'Not' THEN NULL ELSE T4.Output END [Extended Support End Date]
 	, CASE WHEN LEFT(T5.Output,3) = 'Not' THEN NULL ELSE T5.Output END [Service Pack Support End Date]
 	FROM #SQLVersionsDump T1
-	LEFT OUTER JOIN #SQLVersionsDump T2 ON T2.Id -1 = T1.ID
-	LEFT OUTER JOIN #SQLVersionsDump T3 ON T3.Id -2 = T1.ID
-	LEFT OUTER JOIN #SQLVersionsDump T4 ON T4.Id -3 = T1.ID
-	LEFT OUTER JOIN #SQLVersionsDump T5 ON T5.Id -4 = T1.ID
+	LEFT OUTER JOIN #SQLVersionsDump T2 ON T2.ID -1 = T1.ID
+	LEFT OUTER JOIN #SQLVersionsDump T3 ON T3.ID -2 = T1.ID
+	LEFT OUTER JOIN #SQLVersionsDump T4 ON T4.ID -3 = T1.ID
+	LEFT OUTER JOIN #SQLVersionsDump T5 ON T5.ID -4 = T1.ID
 	WHERE T1.ID % 5 = 0
 	AND T1.Output IS NOT NULL
 
@@ -706,10 +711,8 @@ https://support.microsoft.com/api/lifecycle/GetProductsLifecycle?query=%7B"names
 			/*----------------------------------------
 			--Check for high worker thread usage
 			----------------------------------------*/
-	IF (
-	SELECT (SELECT CONVERT(MONEY,SUM(current_workers_count)) as [Current worker thread] FROM sys.dm_os_schedulers)*100/max_workers_count FROM sys.dm_os_sys_info) 
-	> 65	
-	BEGIN
+	DECLARE @workerthreadspercentage FLOAT;
+	SELECT @workerthreadspercentage  = (SELECT CONVERT(MONEY,SUM(current_workers_count)) as [Current worker thread] FROM sys.dm_os_schedulers)*100/max_workers_count FROM sys.dm_os_sys_info 
 	INSERT #output_man_script (SectionID, Section,Summary) SELECT 0, 'HIGH Worker Thread Usage','------'
 	INSERT #output_man_script (SectionID, Section,Summary, Severity)
 		SELECT 0, 'Worker threads',
@@ -719,16 +722,16 @@ https://support.microsoft.com/api/lifecycle/GetProductsLifecycle?query=%7B"names
 			+ CONVERT(VARCHAR(15),(SELECT AVG (CONVERT(MONEY,work_queue_count))
 			
 		FROM  sys.dm_os_schedulers WHERE STATUS = 'VISIBLE ONLINE' ))
-		, @Result_YourServerIsDead
+		, CASE WHEN @workerthreadspercentage > 65 THEN @Result_Warning ELSE @Result_Good END
 		FROM sys.dm_os_sys_info
-	END
 	RAISERROR (N'Looked at worker thread usage',0,1) WITH NOWAIT;
 
 			/*----------------------------------------
 			--Check for any pages marked suspect for corruption
 			----------------------------------------*/
-	IF EXISTS(select 1 from msdb.dbo.suspect_pages)
-	INSERT #output_man_script (SectionID, Section,Summary, Details) SELECT 0, 'SUSPECT PAGES !! WARNING !!','------','------'
+	DECLARE @syspectpagescount FLOAT
+	SELECT @syspectpagescount = COUNT(*) FROM msdb.dbo.suspect_pages
+	INSERT #output_man_script (SectionID, Section,Summary, Details) SELECT 0, 'SUSPECT PAGES','------','------'
 	INSERT #output_man_script (SectionID, Section,Summary,Severity, Details)
 	SELECT 0,
 	'DB: ' + db_name(database_id)
@@ -736,7 +739,7 @@ https://support.microsoft.com/api/lifecycle/GetProductsLifecycle?query=%7B"names
 	+ '; PageID: ' + CONVERT(VARCHAR(20), page_id)
 	, 'Event Type: ' + CONVERT(VARCHAR(20),event_type)
 	+ '; Count: ' + CONVERT(VARCHAR(20),error_count)
-	, @Result_YourServerIsDead
+	, CASE WHEN @syspectpagescount > 0 THEN @Result_YourServerIsDead WHEN @syspectpagescount = 0 THEN @Result_Good END
 	, 'Last Update: ' + CONVERT(VARCHAR(20),last_update_date,120)
 	
 	FROM msdb.dbo.suspect_pages
@@ -1324,15 +1327,15 @@ https://support.microsoft.com/api/lifecycle/GetProductsLifecycle?query=%7B"names
 			----------------------------------------*/
 	INSERT #output_man_script (SectionID, Section,Summary, Details) SELECT 9, 'DATABASE - RPO in minutes and RTO in 15 min slices'
 	,'DB;Compat;recovery_model;Best RTO HH:MM:SS ;Last Full;Last TL','MM:SS'
-	INSERT #output_man_script (SectionID, Section,Summary, HoursToResolveWithTesting )
-	SELECT 9,  REPLICATE('|',DATEDIFF(MINUTE,CASE 
+	INSERT #output_man_script (SectionID, Section,Summary, HoursToResolveWithTesting ) /* Had to change to DAYS thanks to some clients*/
+	SELECT 9,  REPLICATE('|',DATEDIFF(DAY,CASE 
 	WHEN recovery_model = 'FULL' AND x.[Last Transaction Log] > x.[Last Full] THEN x.[Last Transaction Log]
 	WHEN recovery_model = 'FULL' AND x.[Last Transaction Log] <= x.[Last Full] THEN [Last Full]
-	ELSE x.[Last Full] END, GETDATE())/15) +' ' + 
-	CONVERT(VARCHAR(20),DATEDIFF(MINUTE,CASE 
+	ELSE x.[Last Full] END, GETDATE())) +' ' + 
+	CONVERT(VARCHAR(20),DATEDIFF(DAY,CASE 
 	WHEN recovery_model = 'FULL' AND x.[Last Transaction Log] > x.[Last Full] THEN x.[Last Transaction Log]
 	WHEN recovery_model = 'FULL' AND x.[Last Transaction Log] <= x.[Last Full] THEN [Last Full]
-	ELSE x.[Last Full] END, GETDATE())) + ' minutes'
+	ELSE x.[Last Full] END, GETDATE())) + ' days'
 	, (database_name
 	+ '; ' +CONVERT(VARCHAR(10),[compatibility_level])
 	+ '; ' + recovery_model
@@ -1439,7 +1442,7 @@ https://support.microsoft.com/api/lifecycle/GetProductsLifecycle?query=%7B"names
 	SELECT 10, LEFT(mf.physical_name, 2) + '\ '
 			+ ' ; ' + CONVERT(VARCHAR(250),SUM(io_stall)/SUM(num_of_reads+num_of_writes)) + ' (ms)'
 			+ ' ; ' + CONVERT(VARCHAR(25),(CONVERT(MONEY,SUM([num_of_reads])) + SUM([num_of_writes])) * 8 /1024/1024/ CONVERT(MONEY,@DaysUptime))+ 'GB/day'
-			+ 'Free space: ' + CONVERT(VARCHAR(20), MAX(CAST(fd.FreeSpaceMB / 1024 as decimal(20,2)))) + 'GB'
+			+ '; Free space: ' + CONVERT(VARCHAR(20), MAX(CAST(fd.FreeSpaceMB / 1024 as decimal(20,2)))) + 'GB'
 			, CONVERT(VARCHAR(25),SUM(io_stall_read_ms)/SUM(num_of_reads)) + ' (ms)'
 			+ ' ; ' + CONVERT(VARCHAR(25),SUM(io_stall_write_ms)/SUM(num_of_writes) )+ ' (ms)'
 			, CASE 
@@ -1530,7 +1533,7 @@ https://support.microsoft.com/api/lifecycle/GetProductsLifecycle?query=%7B"names
 	END
 
 	INSERT #output_man_script (SectionID, Section,Summary, Details) SELECT 11, 'DATABASE FILES - Disk Usage Ordered by largest','------','------'
-	INSERT #output_man_script (SectionID, Section,Summary, Details)
+	INSERT #output_man_script (SectionID, Section,Summary, Severity, Details)
 
 	SELECT 11,
 	REPLICATE('|',100-[FreeSpace %]) + REPLICATE('''',[FreeSpace %]) +' ('+ CONVERT(VARCHAR(20),CONVERT(INT,ROUND(100-[FreeSpace %],0))) + '% of ' + CONVERT(VARCHAR(20),CONVERT(MONEY,FileSize/1024)) + ')'
@@ -1544,6 +1547,7 @@ https://support.microsoft.com/api/lifecycle/GetProductsLifecycle?query=%7B"names
 	+ '; Growth:'
 	+ CASE WHEN growth <= 100 THEN CONVERT(VARCHAR(20),growth) + '%' ELSE CONVERT(VARCHAR(20),growth/128) + 'MB' END 
 	)
+	, CASE WHEN [FreeSpace %] < 5 THEN @Result_ReallyBad WHEN [FreeSpace %] < 10 THEN @Result_Warning ELSE @Result_Good END
 	,(UPPER(DriveLetter)
 	+' FG:'
 	+ FileGroupName 
@@ -2041,7 +2045,7 @@ SELECT 14,  REPLICATE('|',CONVERT(MONEY,T2.[TotalIO])/ SUM(T2.[TotalIO]) OVER()*
 			----------------------------------------*/
 			RAISERROR	  (N'Looking for missing indexes in DMVs',0,1) WITH NOWAIT;
 			SET @dynamicSQL = '
-			USE [Master]
+			USE [master]
 			SELECT LEFT([statement],(PATINDEX(''%.%'',[statement]))-1) [Database]
 			,  (( user_seeks + user_scans ) * avg_total_user_cost * avg_user_impact)/' + CONVERT(NVARCHAR,@DaysOldestCachedQuery) + ' daily_magic_benefit_number
 			, [Table] = [statement]
@@ -2103,26 +2107,26 @@ SELECT 14,  REPLICATE('|',CONVERT(MONEY,T2.[TotalIO])/ SUM(T2.[TotalIO]) OVER()*
 			DECLARE @DaysAgo INT, @TheDate DATETIME
 			SET @DaysAgo = 15
 			SET @TheDate =  CONVERT(DATETIME,CONVERT(INT,DATEADD(DAY,-@DaysAgo,GETDATE())))
-			DECLARE @db_id smallint, @tab_id INT 
+			DECLARE @db_id smallint
 			SET @db_id=db_id()
-			SET @tab_id=object_id(''Production.Product'')
-			SELECT '''+@DatabaseName+''',
+			SELECT db_name(db_id()),
 			CASE WHEN b.type_desc = ''CLUSTERED'' THEN ''Consider Carefully'' ELSE ''May remove'' END Consideration
-			, t.name TableName, b.type_desc TypeDesc, b.name IndexName, a.user_updates Updates, a.last_user_scan, a.last_user_seek, SUM(aa.page_count) Pages
+			, t.name TableName, b.type_desc TypeDesc, b.name IndexName, a.user_updates Updates, a.last_user_scan, a.last_user_seek
+			--, SUM(aa.page_count) Pages
 			FROM sys.dm_db_index_usage_stats as a
 			JOIN sys.indexes AS b ON a.object_id = b.object_id AND a.index_id = b.index_id
 			LEFT OUTER JOIN sys.tables AS t ON b.[object_id] = t.[object_id]
-			LEFT OUTER JOIN INFORMATION_SCHEMA.TABLES isc ON isc.TABLE_NAME = t.name
-			LEFT OUTER JOIN sys.dm_db_index_physical_stats (@db_id,@tab_id,NULL, NULL, NULL) AS aa ON aa.object_id = a.object_id
-			WHERE a.user_seeks + a.user_scans + a.system_scans + a.user_lookups = 0
-			AND (DATEDIFF(DAY,a.last_user_scan,GETDATE()) > @DaysAgo AND DATEDIFF(DAY,a.last_user_seek,GETDATE()) > @DaysAgo)
-			AND t.name NOT LIKE ''sys%''
+			--LEFT OUTER JOIN INFORMATION_SCHEMA.TABLES isc ON isc.TABLE_NAME = t.name
+			--LEFT OUTER JOIN sys.dm_db_index_physical_stats (@db_id,NULL,NULL, NULL, NULL) AS aa ON aa.object_id = a.object_id
+			WHERE b.[type_desc] NOT LIKE ''Heap''
+			AND ISNULL(a.user_seeks,0) + ISNULL(a.user_scans,0) + ISNULL(a.system_scans,0) + ISNULL(a.user_lookups,0) = 0
+			--AND (DATEDIFF(DAY,a.last_user_scan,GETDATE()) > @DaysAgo AND DATEDIFF(DAY,a.last_user_seek,GETDATE()) > @DaysAgo)
+			--AND t.name NOT LIKE ''sys%''
 			GROUP BY t.name, b.type_desc, b.name, a.user_updates, a.last_user_scan, a.last_user_seek
-			HAVING SUM(aa.page_count) > 500
-			ORDER BY Pages DESC OPTION (RECOMPILE)
+			ORDER BY [Updates] DESC OPTION (RECOMPILE)
 			'
-			--INSERT #NeverUsedIndex
-			--EXEC sp_executesql @dynamicSQL;
+			INSERT #NeverUsedIndex
+			EXEC sp_executesql @dynamicSQL;
 			SET ANSI_WARNINGS ON
 		/*14. Find heaps*/
 			/*---------------------------------------Shows tables without primary key. Heaps---------------------------------------*/
@@ -2325,13 +2329,14 @@ SELECT 14,  REPLICATE('|',CONVERT(MONEY,T2.[TotalIO])/ SUM(T2.[TotalIO]) OVER()*
 		IF EXISTS (SELECT 1 FROM #HeapTable ) 
 	BEGIN
 		INSERT #output_man_script (SectionID, Section,Summary, Details) SELECT 19, 'HEAP TABLES - Bad news','------','------'
-		INSERT #output_man_script (SectionID, Section,Summary ,Details,HoursToResolveWithTesting )
+		INSERT #output_man_script (SectionID, Section,Summary ,Severity, Details,HoursToResolveWithTesting )
 			SELECT 19, REPLICATE('|', (ISNULL(user_scans,0)+ ISNULL(user_seeks,0) + ISNULL(user_lookups,0) + ISNULL(user_updates,0))/100) + CONVERT(VARCHAR(20),(ISNULL(user_scans,0)+ ISNULL(user_seeks,0) + ISNULL(user_lookups,0) + ISNULL(user_updates,0))/100) 
 			, 'Rows:' + CONVERT(VARCHAR(20),T1.rows)
 			+ ';'+ '['+T1.DB+'].' + '['+T1.[schema]+'].' + '['+T1.[table]+']' 
 			+ '; Scan:' + CONVERT(VARCHAR(20),ISNULL(T1.last_user_scan,0) ,120)
 			+ '; Seek:' + CONVERT(VARCHAR(20),ISNULL(T1.last_user_seek,0) ,120)
 			+ '; Lookup:' + CONVERT(VARCHAR(20),ISNULL(T1.last_user_lookup,0) ,120)
+			, @Result_Warning
 			, '/*DIRTY FIX, assuming forwarded records*/ALTER TABLE ['+T1.DB+'].' + '['+T1.[schema]+'].' + '['+T1.[table]+'] REBUILD '
 			, 3
 			/*SELECT
@@ -2361,8 +2366,7 @@ SELECT 14,  REPLICATE('|',CONVERT(MONEY,T2.[TotalIO])/ SUM(T2.[TotalIO]) OVER()*
 			, 'Updates: '+  CONVERT(VARCHAR(20),Updates)
 			+ '; ' +TypeDesc + ':' 
 			+ IndexName 
-			, CONVERT(VARCHAR(20),Pages) + ' pages'
-			+ '; DB:' + DB
+			, '; DB:' + DB
 			+ '; Table:' + TableName
 			FROM #NeverUsedIndex /*They are like little time capsules.. just sitting there.. waiting*/
 			ORDER BY  DATEDIFF(DAY,last_user_scan,GETDATE()) DESC OPTION (RECOMPILE)
@@ -2370,10 +2374,11 @@ SELECT 14,  REPLICATE('|',CONVERT(MONEY,T2.[TotalIO])/ SUM(T2.[TotalIO]) OVER()*
 		IF EXISTS (SELECT 1 FROM #Action_Statistics ) 
 	BEGIN
 		INSERT #output_man_script (SectionID, Section,Summary, Details) SELECT 21,'STALE STATS - Worst news','------','------'
-		INSERT #output_man_script (SectionID, Section,Summary ,Details,HoursToResolveWithTesting )
+		INSERT #output_man_script (SectionID, Section,Summary ,Severity, Details,HoursToResolveWithTesting )
 			SELECT  21,
 			REPLICATE('|',DATEDIFF(DAY,s.LastUpdated,GETDATE())) + CONVERT(VARCHAR(20),DATEDIFF(DAY,s.LastUpdated,GETDATE())) +' days old'
 			, '%Change:' + CONVERT(VARCHAR(15),[Mod%]) +'%; Rows:' + CONVERT(VARCHAR(15),Rows) + ';Modifications:' + CONVERT(VARCHAR(20),s.ModificationCount) +'; ['+ DBname + '].['+SchemaName+'].['+TableName+']:['+StatisticsName+']'
+			, CASE WHEN DATEDIFF(DAY,s.LastUpdated,GETDATE()) < 14 THEN @Result_Warning ELSE @Result_Bad END
 			, 'UPDATE STATISTICS [' + DBname + '].['+SchemaName+'].['+TableName+'] ['+StatisticsName+'] WITH FULLSCAN; PRINT ''[' + DBname + '].['+SchemaName+'].['+TableName+'] ['+StatisticsName+'] Done ''' [UpdateStats]
 			, 0.15
 			 FROM #Action_Statistics s 
@@ -2675,14 +2680,14 @@ SELECT  30 [SectionID]
 END),'')  + '% likely'    
 +  '; Connections: ' + CONVERT(VARCHAR(10),con.number_of_connections )
 + '; HoursActive: '+ CONVERT(VARCHAR(10),DATEDIFF(HOUR,@lastservericerestart,GETDATE())) 
-+ '; Pages(MB) in memory' + CONVERT(VARCHAR(10), ISNULL(pages.[TotalPages in MB],0)) 
++ '; Pages(MB) in memory: ' + CONVERT(VARCHAR(10), ISNULL(pages.[TotalPages in MB],0)) 
  [Summary]
  
 ,  'DB Created: ' + CONVERT(VARCHAR,base.DBcreatedate,120)
-+ 'Last seek: ' + CONVERT(VARCHAR,base.[last_user_seek],120)
++ '; Last seek: ' + CONVERT(VARCHAR,base.[last_user_seek],120)
 + '; Last scan:' + CONVERT(VARCHAR,base.[last_user_scan],120)
-+ '; Last lookup' + CONVERT(VARCHAR,base.[last_user_lookup],120)
-+ '; Last update' + CONVERT(VARCHAR,base.[last_user_update],120) [Details]
++ '; Last lookup: ' + CONVERT(VARCHAR,base.[last_user_lookup],120)
++ '; Last update: ' + CONVERT(VARCHAR,base.[last_user_update],120) [Details]
 
 FROM (
 SELECT db.name, db.database_id
@@ -2751,39 +2756,7 @@ ORDER BY base.name
 			/*----------------------------------------
 			--Calculate daily IO workload
 			----------------------------------------*/
-/*
-INSERT #output_man_script (SectionID, Section,Summary, Details) SELECT 31, 'Possible TempDB Slowness','------','------'
 
-With Tasks
-As (Select session_id,
-        wait_type,
-        wait_duration_ms,
-        blocking_session_id,
-        resource_description,
-        PageID = Cast(Right(resource_description, Len(resource_description)
-                - Charindex(':', resource_description, 3)) As Int)
-    From sys.dm_os_waiting_tasks
-    Where wait_type Like 'PAGE%LATCH_%'
-    And resource_description Like '2:%')
-INSERT #output_man_script (SectionID, Section,Summary,Details)
-Select session_id,
-        wait_type,
-        wait_duration_ms,
-        blocking_session_id,
-        resource_description,
-    ResourceType = Case
-        When PageID = 1 Or PageID % 8088 = 0 Then 'Is PFS Page'
-        When PageID = 2 Or PageID % 511232 = 0 Then 'Is GAM Page'
-        When PageID = 3 Or (PageID - 1) % 511232 = 0 Then 'Is SGAM Page'
-        Else 'Is Not PFS, GAM, or SGAM page'
-    End
-From Tasks;
-
-	RAISERROR (N'Slow TempDB checked',0,1) WITH NOWAIT;
-*/
-			/*----------------------------------------
-			--Calculate daily IO workload
-			----------------------------------------*/
 
 	BEGIN TRY
 		IF OBJECT_ID('tempdb.dbo.#LEXEL_OES_stats_sql_handle_convert_table', 'U') IS NOT NULL

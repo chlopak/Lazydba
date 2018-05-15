@@ -968,7 +968,7 @@ https://support.microsoft.com/api/lifecycle/GetProductsLifecycle?query=%7B"names
 	FROM sys.databases db ';
 	IF 'Yes please dont do the system databases' IS NOT NULL
 	BEGIN
-		SET @dynamicSQL = @dynamicSQL + ' WHERE database_id > 4 AND state NOT IN (1,2,3,6) AND user_access = 0';
+		SET @dynamicSQL = @dynamicSQL + ' WHERE database_id > 4 AND state NOT IN (1,2,3,6) AND user_access = 0 AND replica_id IS NULL';
 	END
 	SET @dynamicSQL = @dynamicSQL + ' OPTION (RECOMPILE)'
 	INSERT INTO @Databases 
@@ -2362,14 +2362,39 @@ SELECT 14,  REPLICATE('|',CONVERT(MONEY,T2.[TotalIO])/ SUM(T2.[TotalIO]) OVER()*
 		INSERT #output_man_script (SectionID, Section,Summary, Details) SELECT 20, 'STALE INDEXES - Consider removing them at some stage','------','------'
 		INSERT #output_man_script (SectionID, Section,Summary ,Details )
 
-			SELECT 20, REPLICATE('|', DATEDIFF(DAY,last_user_scan,GETDATE()))
-			, 'Updates: '+  CONVERT(VARCHAR(20),Updates)
-			+ '; ' +TypeDesc + ':' 
-			+ IndexName 
-			, '; DB:' + DB
-			+ '; Table:' + TableName
-			FROM #NeverUsedIndex /*They are like little time capsules.. just sitting there.. waiting*/
-			ORDER BY  DATEDIFF(DAY,last_user_scan,GETDATE()) DESC OPTION (RECOMPILE)
+		SELECT 20, REPLICATE('|', LOG(CONVERT(BIGINT,rows)))
+					, 'Table: ' + nui.TableName
+					+ '; Updates: '+  CONVERT(VARCHAR(20),Updates)
+					+ '; Rows: ' +CONVERT(NVARCHAR(20),rows) 
+					, 'DB:' + DB
+					+ '; Table:' + nui.TableName	
+					+ '; StaleIndexes: ' + CONVERT(NVARCHAR(20),IndexCount)
+		FROM 
+		(
+			SELECT 
+			DB
+			, TableName
+			, COUNT(DISTINCT IndexName) As IndexCount
+			, MAX(Updates) As Updates
+			FROM 
+			#NeverUsedIndex 
+			WHERE TypeDesc <> 'CLUSTERED'
+			GROUP BY DB
+			, TableName
+		) 
+		nui
+		INNER JOIN (
+			SELECT OBJECT_NAME(object_id) TableName, SUM(row_count) rows FROM sys.dm_db_partition_stats 
+			WHERE index_id < 2
+			GROUP BY object_id
+
+		)t2 ON nui.TableName = t2.TableName
+		WHERE Updates/rows > 1
+		AND rows > 0
+		AND rows > 90
+		ORDER BY rows DESC, nui.TableName ASC
+		OPTION (RECOMPILE)
+			
 	END
 		IF EXISTS (SELECT 1 FROM #Action_Statistics ) 
 	BEGIN

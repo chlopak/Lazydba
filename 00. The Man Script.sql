@@ -116,6 +116,8 @@ END
 		, @OutputSchemaName = 'dbo'
 		, @OutputTableName = 'sp_Blitz_output'
 
+IF 1 = 2 
+BEGIN
 	EXEC dbo.sp_BlitzFirst 
 		@ExpertMode = 1
 		, @CheckProcedureCache = 1
@@ -123,7 +125,7 @@ END
 		, @Seconds = 30;
 
 	EXEC [dbo].[sp_BlitzIndex] @Mode = 4, @SkipStatistics = 0, @GetAllDatabases = 1, @OutputServerName = 1, @OutputDatabaseName = 1;
-
+END
 
 
 /*Do Do follows*/

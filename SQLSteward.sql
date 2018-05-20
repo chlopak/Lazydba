@@ -535,7 +535,7 @@ BEGIN
 		SELECT 0,'Locked Pages in Memory','Consider changing. This was old best practice, not valid for VMs or post 2008.',@Result_Warning
 	END
 
-	IF EXISTS ( SELECT * FROM @xp_errorlog WHERE [Text] LIKE '%File Initialization%')
+	IF NOT EXISTS ( SELECT * FROM @xp_errorlog WHERE [Text] LIKE '%File Initialization%')
 	BEGIN
 		INSERT #output_man_script (SectionID,Section,Summary,Severity)
 		SELECT 0,'Instant File Initialization is OFF','Consider enabling this. Speeds up database data file growth.',@Result_Warning
@@ -1345,10 +1345,10 @@ https://support.microsoft.com/api/lifecycle/GetProductsLifecycle?query=%7B"names
 	WHEN recovery_model = 'FULL' AND x.[Last Transaction Log] > x.[Last Full] THEN x.[Last Transaction Log]
 	WHEN recovery_model = 'FULL' AND x.[Last Transaction Log] <= x.[Last Full] THEN [Last Full]
 	ELSE x.[Last Full] END, GETDATE())) +' ' + 
-	CONVERT(VARCHAR(20),DATEDIFF(DAY,CASE 
+	CONVERT(VARCHAR(20),DATEDIFF(HOUR,CASE 
 	WHEN recovery_model = 'FULL' AND x.[Last Transaction Log] > x.[Last Full] THEN x.[Last Transaction Log]
 	WHEN recovery_model = 'FULL' AND x.[Last Transaction Log] <= x.[Last Full] THEN [Last Full]
-	ELSE x.[Last Full] END, GETDATE())) + ' days'
+	ELSE x.[Last Full] END, GETDATE())) + ' hours'
 	, (database_name
 	+ '; ' +CONVERT(VARCHAR(10),[compatibility_level])
 	+ '; ' + recovery_model

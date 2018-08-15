@@ -29,8 +29,11 @@ ALTER PROCEDURE [dbo].[sqlsteward]
 , @PrepForExport TINYINT  = 1 
 /*@ShowMigrationRelatedOutputs. When you need to show migration stuff, like possible breaking connections and DMA script outputs, set to 1 to show information*/
 , @ShowMigrationRelatedOutputs TINYINT = 0 
+
  /*Screen / Table*/
 , @Export NVARCHAR(10) = 'Table'
+, @ShowOnScreenWhenResultsToTable TINYINT = 1 
+
 , @ExportSchema NVARCHAR(10)  = 'dbo'
 , @ExportDBName  NVARCHAR(20) = 'master'
 , @ExportTableName NVARCHAR(20) = 'sqlsteward_output'
@@ -3512,6 +3515,24 @@ BEGIN
 	OPTION (RECOMPILE)'
 	EXEC sp_executesql @dynamicSQL;	
 
+	IF @ShowOnScreenWhenResultsToTable = 1 
+	BEGIN
+		/*And after all that hard work, how about we select to the screen as well*/
+		SELECT T1.ID
+		,  evaldate
+		, T1.domain
+		, T1.SQLInstance
+		, T1.SectionID
+		, T1.Section
+		, T1.Summary
+		, T1.Severity
+		, T1.Details
+		, T1.HoursToResolveWithTesting
+		, CASE WHEN  @ShowQueryPlan = 1 THEN ISNULL(replace(replace(replace(replace(ISNULL(CONVERT(NVARCHAR(MAX),QueryPlan),''), CHAR(9), ' '),CHAR(10),' '), CHAR(13), ' '), '  ',' '),'')   ELSE NULL END QueryPlan
+		FROM #output_man_script T1
+		ORDER BY ID ASC
+		OPTION (RECOMPILE)
+	END
 END
 
 

@@ -1,4 +1,4 @@
-PRINT 'SQL server evaluation script @ 10 April 2018 adrian.sullivan@lexel.co.nz ' + NCHAR(65021)
+PRINT 'SQL server evaluation script @ 16 August 2018 adrian.sullivan@lexel.co.nz ' + NCHAR(65021)
 IF NOT EXISTS (SELECT * FROM sys.objects WHERE type = 'P' AND OBJECT_ID = OBJECT_ID('dbo.sqlsteward'))
    exec('CREATE PROCEDURE [dbo].[sqlsteward] AS BEGIN SET NOCOUNT ON; END')
 GO
@@ -17,12 +17,20 @@ GO
 */
 
 ALTER PROCEDURE [dbo].[sqlsteward] 
-  @TopQueries TINYINT  = 50  /*How many queries need to be looked at, TOP xx*/
-, @FTECost MONEY  = 70000/*Average price in $$$ that you pay someone at your company*/
-, @MinExecutionCount TINYINT  = 1 /*This can go to 0 for more details, but first attend to often used queries. Run this with 0 before making any big decisions*/
-, @ShowQueryPlan TINYINT  = 1 /*Set to 1 to include the Query plan in the output*/
-, @PrepForExport TINYINT  = 1 /*When the intent of this script is to use this for some type of hocus-pocus magic metrics, set this to 1*/
-, @Export NVARCHAR(10) = 'Table' /*Screen / Table*/
+ /*@TopQueries. How many queries need to be looked at, TOP xx*/
+  @TopQueries TINYINT  = 50 
+/*@FTECost. Average price in $$$ that you pay someone at your company every year.*/
+, @FTECost MONEY  = 70000
+/*@MinExecutionCount. This can go to 0 for more details, but first attend to often used queries. Run this with 0 before making any big decisions*/
+, @MinExecutionCount TINYINT  = 1 
+/*@ShowQueryPlan. Set to 1 to include the Query plan in the output*/
+, @ShowQueryPlan TINYINT  = 1 
+/*@PrepForExport. When the intent of this script is to use this for some type of hocus-pocus magic metrics, set this to 1*/
+, @PrepForExport TINYINT  = 1 
+/*@ShowMigrationRelatedOutputs. When you need to show migration stuff, like possible breaking connections and DMA script outputs, set to 1 to show information*/
+, @ShowMigrationRelatedOutputs TINYINT = 0 
+ /*Screen / Table*/
+, @Export NVARCHAR(10) = 'Table'
 , @ExportSchema NVARCHAR(10)  = 'dbo'
 , @ExportDBName  NVARCHAR(20) = 'master'
 , @ExportTableName NVARCHAR(20) = 'sqlsteward_output'
@@ -109,7 +117,7 @@ BEGIN
 	PRINT REPLACE(REPLACE(REPLACE(REPLACE(''+@c_r+'	[   ....,,:,,....[[ '+@c_r+'[   ,???????????????????:.[   '+@c_r+'[ .???????????????????????,[  '+@c_r+'s=.  ??????&&&$$??????. .7s '+@c_r+'s~$.. ...&&&&&... ..7Is '+@c_r+'s~&$+....[[.. =7777Is '+@c_r+'s~&&&&$$7I777Iv7777I[[  '+@c_r+'s~&&&&$$Ivv7777Is '+@c_r+'s~&$$... &$.. ..777?..vIs '+@c_r+'s~&$  &$$.  77?..77? .vIs '+@c_r+'s~&$. .&$  $I77=  7? .vIs '+@c_r+'s~&$$,. .$$ .$I777..7? .vIs '+@c_r+'s~&&$+ .$  ~I77. ,7? .vIs '+@c_r+'s~&$..   & ...  :77? ....77Is '+@c_r+'s~&&&&$$I:..vv7I[ '+@c_r+'s~&&&&$$Ivv7777Is '+@c_r+'s.&&&&$$Ivv7777.s '+@c_r+'s .&&&&$Ivv777.['+@c_r+'[ ..7&&&Ivv..[  '+@c_r+'[[........... ..[[ ', '&','$$$'),'v', '77777'),'[', '      '),'s','    ')
 	PRINT REPLACE(REPLACE(REPLACE(REPLACE('.m__._. _.m__. __.__.. _.. _. _. m_..m_.m_. m.m_.m__ '+@c_r+' |_. _|g g| m_g.\/.i / \. | \ g / mi/ m|i_ \ |_ _|i_ \|_. _|'+@c_r+'. g.g_gi_i g\/g./ _ \.i\g \m \ g..g_) g g |_) g i'+@c_r+'. g.i_.|gm.g.g / m \ g\.im) |gm i_ <.g i__/.g.'+@c_r+'. |_i|_g_||m__g_i|_|/_/. \_\|_| \_gm_/.\m_||_| \_\|m||_i. |_i'+@c_r+'........................................... ','i','|.'),'.','  '),'m','___'),'g','| |')
 	PRINT @License;
-	PRINT 'Let''s begin..';
+	PRINT 'Let''s do this!';
 	
 	/*@ShowWarnings = 0 > Only show warnings */
 	DECLARE @ShowWarnings TINYINT ;
@@ -277,6 +285,8 @@ BEGIN
 				, [BeingClever] NVARCHAR(4000)
 			);
 
+
+	/*Note, if you add columns to this table, please make sure to add them in the ADD Column clause at the bottom of the script where it writes outputs to a table.*/
 	IF OBJECT_ID('tempdb..#output_man_script') IS NOT NULL
 				DROP TABLE #output_man_script;
 			CREATE TABLE #output_man_script 
@@ -766,7 +776,7 @@ https://support.microsoft.com/api/lifecycle/GetProductsLifecycle?query=%7B"names
 			--DANGER WILL ROBINSON
 
 			----------------------------------------*/
-
+	
 	IF EXISTS(SELECT 1 FROM sys.dm_exec_sessions T 
 	WHERE ((
 	quoted_identifier = 0 
@@ -833,48 +843,51 @@ https://support.microsoft.com/api/lifecycle/GetProductsLifecycle?query=%7B"names
 		ORDER BY Section, [Summary];
 		PRINT N'WARNING! You have SET options that might break stuff on SQL 2005+. DANGER WILL ROBINSON';
 		
-		INSERT #output_man_script (SectionID, Section,Summary, Details) SELECT 1,'!!! WARNING - MAY BREAK UPGRADE !!!','Database;App/Interface;Driver;User;Host','------'
-		INSERT #output_man_script (SectionID, Section,Summary, Details)
-		SELECT DISTINCT 1
-		, ISNULL(CASE 
-		WHEN T.client_version < 3 THEN '!!! UPGRADE ISSUE !!! Pre SQL 7'
-		WHEN T.client_version = 3 THEN '!!! UPGRADE ISSUE !!! SQL 7'
-		WHEN T.client_version = 4 THEN '!!! UPGRADE ISSUE !!! SQL 2000'
-		WHEN T.client_version = 5 THEN '!!! UPGRADE ISSUE !!! SQL 2005'
-		WHEN T.client_version = 6 THEN 'SQL 2008'
-		WHEN T.client_version = 7 THEN 'SQL 2012'
-		ELSE 'SQL 2014+'
-		END,'') [Section]
-		, '[' + ISNULL(d.name ,'')+ ']'
-		+';[' + ISNULL(T.program_name,ISNULL(T.client_interface_name,''))
-		+ ']; [' + ISNULL(
-		CASE SUBSTRING(CAST(C.protocol_version AS BINARY(4)), 1,1)
-		WHEN 0x04 THEN 'Pre-version SQL 7.0 - DBLibrary/ ISQL'
-		WHEN 0x70 THEN 'SQL 7.0'
-		WHEN 0x71 THEN 'SQL 2000'
-		WHEN 0x72 THEN 'SQL 2005'
-		WHEN 0x73 THEN 'SQL 2008'
-		WHEN 0x74 THEN 'SQL 2012/14/16'
-		ELSE 'Unknown driver'
-		END ,'')
-		+ '];[' + ISNULL(T.nt_user_name,ISNULL(T.original_login_name,''))
-		+ '][;' + ISNULL(T.host_name,'') + ']' [Summary]
-		, '' + ISNULL(CASE WHEN T.quoted_identifier = 0 THEN ';quoted_identifier = OFF' ELSE '' END
-		+ ''+  CASE WHEN T.ansi_nulls = 0 THEN ';ansi_nulls = OFF' ELSE '' END
-		+ ''+  CASE WHEN T.ansi_padding = 0 THEN ';ansi_padding = OFF' ELSE '' END
-		+ ''+  CASE WHEN T.ansi_warnings = 0 THEN ';ansi_warnings = OFF' ELSE '' END
-		+ ''+  CASE WHEN T.arithabort = 0 THEN ';arithabort = OFF' ELSE '' END
-		+ ''+  CASE WHEN T.concat_null_yields_null = 0 THEN ';concat_null_yields_null = OFF' ELSE '' END,'')
-		FROM sys.dm_exec_sessions T
-		INNER JOIN sys.dm_exec_connections C ON C.session_id = T.session_id
-		LEFT OUTER JOIN  sys.dm_exec_requests r on T.session_id = r.session_id
-		LEFT OUTER JOIN sys.databases d ON r.database_id = d.database_id
-		WHERE ( 1 = 1)
-		--AND LEN(ISNULL(T.nt_user_name,0)) > 1
-		AND T.program_name NOT LIKE 'SQLAgent - %' 
-		AND T.client_version < 6 
-		ORDER BY Section, [Summary];
-		PRINT N'WARNING! Upgrades may break clients connecting in';
+		IF @ShowMigrationRelatedOutputs = 1
+		BEGIN
+			INSERT #output_man_script (SectionID, Section,Summary, Details) SELECT 1,'!!! WARNING - MAY BREAK UPGRADE !!!','Database;App/Interface;Driver;User;Host','------'
+			INSERT #output_man_script (SectionID, Section,Summary, Details)
+			SELECT DISTINCT 1
+			, ISNULL(CASE 
+			WHEN T.client_version < 3 THEN '!!! UPGRADE ISSUE !!! Pre SQL 7'
+			WHEN T.client_version = 3 THEN '!!! UPGRADE ISSUE !!! SQL 7'
+			WHEN T.client_version = 4 THEN '!!! UPGRADE ISSUE !!! SQL 2000'
+			WHEN T.client_version = 5 THEN '!!! UPGRADE ISSUE !!! SQL 2005'
+			WHEN T.client_version = 6 THEN 'SQL 2008'
+			WHEN T.client_version = 7 THEN 'SQL 2012'
+			ELSE 'SQL 2014+'
+			END,'') [Section]
+			, '[' + ISNULL(d.name ,'')+ ']'
+			+';[' + ISNULL(T.program_name,ISNULL(T.client_interface_name,''))
+			+ ']; [' + ISNULL(
+			CASE SUBSTRING(CAST(C.protocol_version AS BINARY(4)), 1,1)
+			WHEN 0x04 THEN 'Pre-version SQL 7.0 - DBLibrary/ ISQL'
+			WHEN 0x70 THEN 'SQL 7.0'
+			WHEN 0x71 THEN 'SQL 2000'
+			WHEN 0x72 THEN 'SQL 2005'
+			WHEN 0x73 THEN 'SQL 2008'
+			WHEN 0x74 THEN 'SQL 2012/14/16'
+			ELSE 'Unknown driver'
+			END ,'')
+			+ '];[' + ISNULL(T.nt_user_name,ISNULL(T.original_login_name,''))
+			+ '][;' + ISNULL(T.host_name,'') + ']' [Summary]
+			, '' + ISNULL(CASE WHEN T.quoted_identifier = 0 THEN ';quoted_identifier = OFF' ELSE '' END
+			+ ''+  CASE WHEN T.ansi_nulls = 0 THEN ';ansi_nulls = OFF' ELSE '' END
+			+ ''+  CASE WHEN T.ansi_padding = 0 THEN ';ansi_padding = OFF' ELSE '' END
+			+ ''+  CASE WHEN T.ansi_warnings = 0 THEN ';ansi_warnings = OFF' ELSE '' END
+			+ ''+  CASE WHEN T.arithabort = 0 THEN ';arithabort = OFF' ELSE '' END
+			+ ''+  CASE WHEN T.concat_null_yields_null = 0 THEN ';concat_null_yields_null = OFF' ELSE '' END,'')
+			FROM sys.dm_exec_sessions T
+			INNER JOIN sys.dm_exec_connections C ON C.session_id = T.session_id
+			LEFT OUTER JOIN  sys.dm_exec_requests r on T.session_id = r.session_id
+			LEFT OUTER JOIN sys.databases d ON r.database_id = d.database_id
+			WHERE ( 1 = 1)
+			--AND LEN(ISNULL(T.nt_user_name,0)) > 1
+			AND T.program_name NOT LIKE 'SQLAgent - %' 
+			AND T.client_version < 6 
+			ORDER BY Section, [Summary];
+			PRINT N'WARNING! Upgrades may break clients connecting in';
+		END
 	END
 	RAISERROR (N'Done checking for possible breaking SQL 2000 things',0,1) WITH NOWAIT;
 
@@ -2705,91 +2718,92 @@ group by d.name
 
 
 PRINT 'Probability of a read data event occurring in the next hour, based on activity since the last restart with a 95% confidence'
-
-INSERT #output_man_script (SectionID, Section,Summary, Details) SELECT 30, 'Database usage likelyhood','------','------'
-INSERT #output_man_script (SectionID, Section,Summary,Details)
-SELECT  30 [SectionID]
-, base.name [Section]
-,ISNULL(CONVERT(VARCHAR(10),CASE
-	WHEN pages.[TotalPages in MB] > 0 THEN 100
-	WHEN con.number_of_connections > 0 THEN confidence.low 
-	ELSE confidence.high  
-END),'')  + '% likely'    
-+  '; Connections: ' + CONVERT(VARCHAR(10),con.number_of_connections )
-+ '; HoursActive: '+ CONVERT(VARCHAR(10),DATEDIFF(HOUR,@lastservericerestart,GETDATE())) 
-+ '; Pages(MB) in memory: ' + CONVERT(VARCHAR(10), ISNULL(pages.[TotalPages in MB],0)) 
- [Summary]
+IF @ShowMigrationRelatedOutputs = 1
+BEGIN
+	INSERT #output_man_script (SectionID, Section,Summary, Details) SELECT 30, 'Database usage likelyhood','------','------'
+	INSERT #output_man_script (SectionID, Section,Summary,Details)
+	SELECT  30 [SectionID]
+	, base.name [Section]
+	,ISNULL(CONVERT(VARCHAR(10),CASE
+		WHEN pages.[TotalPages in MB] > 0 THEN 100
+		WHEN con.number_of_connections > 0 THEN confidence.low 
+		ELSE confidence.high  
+	END),'')  + '% likely'    
+	+  '; Connections: ' + CONVERT(VARCHAR(10),con.number_of_connections )
+	+ '; HoursActive: '+ CONVERT(VARCHAR(10),DATEDIFF(HOUR,@lastservericerestart,GETDATE())) 
+	+ '; Pages(MB) in memory: ' + CONVERT(VARCHAR(10), ISNULL(pages.[TotalPages in MB],0)) 
+	 [Summary]
  
-,  'DB Created: ' + CONVERT(VARCHAR,base.DBcreatedate,120)
-+ '; Last seek: ' + CONVERT(VARCHAR,base.[last_user_seek],120)
-+ '; Last scan:' + CONVERT(VARCHAR,base.[last_user_scan],120)
-+ '; Last lookup: ' + CONVERT(VARCHAR,base.[last_user_lookup],120)
-+ '; Last update: ' + CONVERT(VARCHAR,base.[last_user_update],120) [Details]
+	,  'DB Created: ' + CONVERT(VARCHAR,base.DBcreatedate,120)
+	+ '; Last seek: ' + CONVERT(VARCHAR,base.[last_user_seek],120)
+	+ '; Last scan:' + CONVERT(VARCHAR,base.[last_user_scan],120)
+	+ '; Last lookup: ' + CONVERT(VARCHAR,base.[last_user_lookup],120)
+	+ '; Last update: ' + CONVERT(VARCHAR,base.[last_user_update],120) [Details]
 
-FROM (
-SELECT db.name, db.database_id
-, MAX(db.create_date) [DBcreatedate]
-, MAX(o.modify_date) [ObjectModifyDate]
-, MAX(ius.last_user_seek)    [last_user_seek]
-, MAX(ius.last_user_scan)   [last_user_scan]
-, MAX(ius.last_user_lookup) [last_user_lookup]
-, MAX(ius.last_user_update) [last_user_update]
-FROM
-	sys.databases db
-	LEFT OUTER JOIN sys.dm_db_index_usage_stats ius  ON db.database_id = ius.database_id
-	LEFT OUTER JOIN  sys.all_objects o ON o.object_id = ius.object_id AND o.type = 'U'
-WHERE 
-	db.database_id > 4 AND state NOT IN (1,2,3,6) AND user_access = 0
-GROUP BY 
-	db.name, db.database_id
-) base
+	FROM (
+	SELECT db.name, db.database_id
+	, MAX(db.create_date) [DBcreatedate]
+	, MAX(o.modify_date) [ObjectModifyDate]
+	, MAX(ius.last_user_seek)    [last_user_seek]
+	, MAX(ius.last_user_scan)   [last_user_scan]
+	, MAX(ius.last_user_lookup) [last_user_lookup]
+	, MAX(ius.last_user_update) [last_user_update]
+	FROM
+		sys.databases db
+		LEFT OUTER JOIN sys.dm_db_index_usage_stats ius  ON db.database_id = ius.database_id
+		LEFT OUTER JOIN  sys.all_objects o ON o.object_id = ius.object_id AND o.type = 'U'
+	WHERE 
+		db.database_id > 4 AND state NOT IN (1,2,3,6) AND user_access = 0
+	GROUP BY 
+		db.name, db.database_id
+	) base
 
-LEFT OUTER JOIN (
-	SELECT name AS dbname
-	 ,COUNT(status) AS number_of_connections
-	FROM master.sys.databases sd
-	LEFT JOIN master.sys.sysprocesses sp ON sd.database_id = sp.dbid
-	WHERE database_id > 4
-	GROUP BY name
-) con ON con.dbname = base.name
-LEFT OUTER JOIN (
-SELECT DB_NAME (database_id) AS 'Database Name'
-,  COUNT(*) *8/1024 AS [TotalPages in MB]
-FROM sys.dm_os_buffer_descriptors
-GROUP BY database_id
-) pages ON pages.[Database Name] = base.name
+	LEFT OUTER JOIN (
+		SELECT name AS dbname
+		 ,COUNT(status) AS number_of_connections
+		FROM master.sys.databases sd
+		LEFT JOIN master.sys.sysprocesses sp ON sd.database_id = sp.dbid
+		WHERE database_id > 4
+		GROUP BY name
+	) con ON con.dbname = base.name
+	LEFT OUTER JOIN (
+	SELECT DB_NAME (database_id) AS 'Database Name'
+	,  COUNT(*) *8/1024 AS [TotalPages in MB]
+	FROM sys.dm_os_buffer_descriptors
+	GROUP BY database_id
+	) pages ON pages.[Database Name] = base.name
 
-LEFT OUTER JOIN (
-select DBName
-  , intervals.n as [Hours]
-  , intervals.x as [TargetActiveHours]
-  , CONVERT(MONEY,(p - se * 1.96)*100) as low
-  , CONVERT(MONEY,(intervals.p * 100)) as mid
-  , CONVERT(MONEY,(p + se * 1.96)*100) as high 
-from (
-  select 
-    rates.*, 
-    sqrt(p * (1 - p) / n) as se -- calculate se
-  from (
-    select 
-      conversions.*, 
-      (CASE WHEN x = 0 THEN 1 ELSE x END + 1.92) / CONVERT(FLOAT,(n + 3.84)) as p -- calculate p
-    from ( 
-      -- Our conversion rate table from above
-      select DBName
-       , DATEDIFF(HOUR,@lastservericerestart,GETDATE()) as n 
-       , DATEDIFF(HOUR,@lastservericerestart,GETDATE()) - EstHoursSinceActive as x
-	   FROM @confidence
-    ) conversions
-  ) rates
-) intervals
-) confidence ON confidence.DBName = base.name
-LEFT OUTER JOIN sys.databases dbs ON dbs.database_id = base.database_id
+	LEFT OUTER JOIN (
+	select DBName
+	  , intervals.n as [Hours]
+	  , intervals.x as [TargetActiveHours]
+	  , CONVERT(MONEY,(p - se * 1.96)*100) as low
+	  , CONVERT(MONEY,(intervals.p * 100)) as mid
+	  , CONVERT(MONEY,(p + se * 1.96)*100) as high 
+	from (
+	  select 
+		rates.*, 
+		sqrt(p * (1 - p) / n) as se -- calculate se
+	  from (
+		select 
+		  conversions.*, 
+		  (CASE WHEN x = 0 THEN 1 ELSE x END + 1.92) / CONVERT(FLOAT,(n + 3.84)) as p -- calculate p
+		from ( 
+		  -- Our conversion rate table from above
+		  select DBName
+		   , DATEDIFF(HOUR,@lastservericerestart,GETDATE()) as n 
+		   , DATEDIFF(HOUR,@lastservericerestart,GETDATE()) - EstHoursSinceActive as x
+		   FROM @confidence
+		) conversions
+	  ) rates
+	) intervals
+	) confidence ON confidence.DBName = base.name
+	LEFT OUTER JOIN sys.databases dbs ON dbs.database_id = base.database_id
 
-ORDER BY base.name
+	ORDER BY base.name
 
 	RAISERROR (N'Database usage likelyhood measured',0,1) WITH NOWAIT;
-
+END
 			/*----------------------------------------
 			--Calculate daily IO workload
 			----------------------------------------*/
@@ -3314,7 +3328,7 @@ ORDER BY base.name
 	+ 'GB/day; ' + CONVERT(VARCHAR(15),(CASE WHEN t_execution_count = 1 THEN 1 ELSE CONVERT(MONEY,t_execution_count)/@DaysOldestCachedQuery END) ) 
 	+ ' executions/day; ' +  CONVERT(VARCHAR(15),(CONVERT(MONEY,t_avg_worker_time_S)))
 	+ ' s(avg) *[DailyGB; DailyExecutions; AverageTime(s)]' [Summary]
-	, '/*' + [Type] + '; '+ ISNULL(t_obj_name,'') + ' [' + ISNULL(t_db_name,'') + '].[' + ISNULL(schema_name,'') + '] > */' + ISNULL(t_SQLStatement,'') [Details] 
+	, LEFT('/*' + [Type] + '; '+ ISNULL(t_obj_name,'') + ' [' + ISNULL(t_db_name,'') + '].[' + ISNULL(schema_name,'') + '] > */' + ISNULL(t_SQLStatement,''),3850) [Details]  
 	FROM (
 
 	SELECT TOP 10 ID
@@ -3353,17 +3367,19 @@ ORDER BY base.name
 			/*----------------------------------------
 			--Create DMA commands
 			----------------------------------------*/
-	INSERT #output_man_script (SectionID, Section,Summary, Details) SELECT 31, 'Database Migration Assistant commands','------','------'
-	INSERT #output_man_script (SectionID, Section,Summary,Details)
+	IF @ShowMigrationRelatedOutputs = 1
+	BEGIN
+		INSERT #output_man_script (SectionID, Section,Summary, Details) SELECT 31, 'Database Migration Assistant commands','------','------'
+		INSERT #output_man_script (SectionID, Section,Summary,Details)
 
-	SELECT 31, 'DMA', 'Run in PowerShell', '.\DmaCmd.exe /AssessmentName="' + @@SERVERNAME + '_' + name + '" /AssessmentDatabases="Server=' + @@SERVERNAME 
-		+ ';Initial Catalog=' + name + ';Integrated Security=true" /AssessmentEvaluateCompatibilityIssues /AssessmentOverwriteResult /AssessmentTargetPlatform="SqlServerWindows2017" /AssessmentResultCsv="'
-		+ 'C:\Temp\DMA\AssessmentReport_' + REPLACE(@@SERVERNAME,'\','_') + '_' + name + '.csv"'
-		 FROM sys.databases
-		WHERE database_id > 4
+		SELECT 31, 'DMA', 'Run in PowerShell', '.\DmaCmd.exe /AssessmentName="' + @@SERVERNAME + '_' + name + '" /AssessmentDatabases="Server=' + @@SERVERNAME 
+			+ ';Initial Catalog=' + name + ';Integrated Security=true" /AssessmentEvaluateCompatibilityIssues /AssessmentOverwriteResult /AssessmentTargetPlatform="SqlServerWindows2017" /AssessmentResultCsv="'
+			+ 'C:\Temp\DMA\AssessmentReport_' + REPLACE(@@SERVERNAME,'\','_') + '_' + name + '.csv"'
+			 FROM sys.databases
+			WHERE database_id > 4
 
-	RAISERROR (N'Create DMA commands',0,1) WITH NOWAIT;
-
+		RAISERROR (N'Create DMA commands',0,1) WITH NOWAIT;
+	END
 			/*----------------------------------------
 			--select output
 			----------------------------------------*/
@@ -3413,8 +3429,73 @@ BEGIN
 		EXEC sp_executesql @dynamicSQL;	
 	END
 
+	SET @dynamicSQL = '
+  DECLARE @ColumnsToAdd TABLE (ID INT IDENTITY(1,1), ColumnName NVARCHAR(500), [order] TINYINT, [length] INT)
+  INSERT INTO @ColumnsToAdd
+  SELECT targetcolumns.name, targetcolumns.column_id, targetcolumns.max_length
+  FROM (
+  SELECT c.name, column_id, max_length
+  FROM tempdb.sys.columns c
+  INNER JOIN tempdb.sys.tables  t ON t.object_id = c.object_id
+  WHERE t.name  like ''%output_man_script%'') targetcolumns
+  LEFT OUTER JOIN(
+  SELECT c.name, column_id, max_length
+  FROM master.sys.columns c
+  INNER JOIN master.sys.tables  t ON t.object_id = c.object_id
+  WHERE t.name = ''sqlsteward_output'') currentcolumns ON targetcolumns.name = currentcolumns.name
+  WHERE currentcolumns.name IS NULL
+
+  DECLARE @MaxcolumnsToAdd INT = 0;
+  DECLARE @ColumnCountLoop INT = 1; 
+  DECLARE @ColumnToAdd NVARCHAR(500);
+  DECLARE @ColumnToAddLen  INT = 0;
+  SET @MaxcolumnsToAdd  = (SELECT MAX(ID) FROM @ColumnsToAdd)
+  IF @MaxcolumnsToAdd > 0
+  BEGIN
+	WHILE @ColumnCountLoop <= @MaxcolumnsToAdd
+		BEGIN
+			SELECT @ColumnToAdd = ColumnName
+			, @ColumnToAddLen = [length]
+			FROM @ColumnsToAdd WHERE ID = @ColumnCountLoop
+
+			IF @ColumnToAdd = ''evaldate''
+				ALTER TABLE ['+  @ExportDBName +'].[' + @ExportSchema + '].[' + @ExportTableName + '] ADD evaldate DATETIME DEFAULT GETDATE()
+			IF @ColumnToAdd = ''domain''
+				ALTER TABLE ['+  @ExportDBName +'].[' + @ExportSchema + '].[' + @ExportTableName + '] ADD domain NVARCHAR(505) DEFAULT DEFAULT_DOMAIN()
+			IF @ColumnToAdd = ''SQLInstance''
+				ALTER TABLE ['+  @ExportDBName +'].[' + @ExportSchema + '].[' + @ExportTableName + '] ADD SQLInstance NVARCHAR(505) DEFAULT @@SERVERNAME
+			IF @ColumnToAdd = ''SectionID''
+				ALTER TABLE ['+  @ExportDBName +'].[' + @ExportSchema + '].[' + @ExportTableName + '] ADD SectionID TINYINT NULL
+			IF @ColumnToAdd = ''Section''
+				ALTER TABLE ['+  @ExportDBName +'].[' + @ExportSchema + '].[' + @ExportTableName + '] ADD Section NVARCHAR(4000)
+			IF @ColumnToAdd = ''Summary''
+				ALTER TABLE ['+  @ExportDBName +'].[' + @ExportSchema + '].[' + @ExportTableName + '] ADD Summary NVARCHAR(4000)
+			IF @ColumnToAdd = ''Severity''
+				ALTER TABLE ['+  @ExportDBName +'].[' + @ExportSchema + '].[' + @ExportTableName + '] ADD Severity NVARCHAR(5)
+			IF @ColumnToAdd = ''Details''
+				ALTER TABLE ['+  @ExportDBName +'].[' + @ExportSchema + '].[' + @ExportTableName + '] ADD Details NVARCHAR(4000)
+			IF @ColumnToAdd = ''QueryPlan''
+				ALTER TABLE ['+  @ExportDBName +'].[' + @ExportSchema + '].[' + @ExportTableName + '] ADD QueryPlan XML NULL
+			IF @ColumnToAdd = ''HoursToResolveWithTesting''
+				ALTER TABLE ['+  @ExportDBName +'].[' + @ExportSchema + '].[' + @ExportTableName + '] ADD HoursToResolveWithTesting MONEY NULL
+			SET @ColumnCountLoop = @ColumnCountLoop + 1;
+		END
+	END
+	';
+	EXEC sp_executesql @dynamicSQL;	
+
 	SET @dynamicSQL = 'INSERT INTO ' + @ExportDBName + '.' + @ExportSchema  + '.' + @ExportTableName + '
-			
+			(ID
+			, evaldate
+			, domain
+			, SQLInstance
+			, SectionID
+			, Section
+			, Summary
+			, Severity
+			, Details
+			, HoursToResolveWithTesting
+			, QueryPlan)
 	SELECT T1.ID
 	,  evaldate
 	, T1.domain

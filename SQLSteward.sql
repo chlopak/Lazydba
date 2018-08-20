@@ -38,6 +38,9 @@ ALTER PROCEDURE [dbo].[sqlsteward]
 , @ExportDBName  NVARCHAR(20) = 'master'
 , @ExportTableName NVARCHAR(20) = 'sqlsteward_output'
 , @ExportCleanupDays INT = 180
+/* @PrintMatrixHeader. Added to turn it off since some control chars coming through stopping a copy/paste from the messages window in SSMS */
+, @PrintMatrixHeader TINYINT = 0
+
 WITH RECOMPILE
 AS
 BEGIN
@@ -77,48 +80,54 @@ BEGIN
 	--------
 	Do stuff
 */
-	DECLARE @matrixthis BIGINT ;
-	SET @matrixthis = 0;
-	DECLARE @matrixthisline INT ;
-	SET @matrixthisline= 0;
-	DECLARE @sliverofawesome NVARCHAR(200);
-	DECLARE @thischar NVARCHAR(1);
 
-	WHILE @matrixthis < 25
-	BEGIN
-		SET @matrixthisline = 0;
-		SET @sliverofawesome = '';
+    IF (@PrintMatrixHeader <> 0)
+    BEGIN
+        DECLARE @matrixthis BIGINT ;
+        SET @matrixthis = 0;
+        DECLARE @matrixthisline INT ;
+        SET @matrixthisline= 0;
+        DECLARE @sliverofawesome NVARCHAR(200);
+        DECLARE @thischar NVARCHAR(1);
 
-		WHILE @matrixthisline < 90
-		BEGIN
-			SET @thischar = NCHAR(CONVERT(INT,RAND() *  1252));
-			IF LEN(@thischar) = 0 OR RAND() < 0.8
-				SET @thischar = ' ';
-			SET @sliverofawesome = @sliverofawesome + @thischar;
-			SET @matrixthisline = @matrixthisline + 1;
-		END
-		PRINT (@sliverofawesome) ;
-		SET @matrixthis = @matrixthis + 1;
-		WAITFOR DELAY '00:00:00.011';
-	END
-	DECLARE @Result_Good NVARCHAR(2);
-	DECLARE @Result_NA NVARCHAR(2);
-	DECLARE @Result_Warning NVARCHAR(2);
-	DECLARE @Result_Bad NVARCHAR(2);
-	DECLARE @Result_ReallyBad NVARCHAR(2);
-	DECLARE @Result_YourServerIsDead NVARCHAR(2);
+        WHILE @matrixthis < 25
+        BEGIN
+            SET @matrixthisline = 0;
+            SET @sliverofawesome = '';
 
-	SET @Result_Good =  NCHAR(10004);
-	SET @Result_NA = NCHAR(9940);
-	SET @Result_Warning = NCHAR(9888);
-	SET @Result_Bad = NCHAR(10006);
-	SET @Result_ReallyBad = NCHAR(9763);
-	SET @Result_YourServerIsDead = NCHAR(9760);
+            WHILE @matrixthisline < 90
+            BEGIN
+                SET @thischar = NCHAR(CONVERT(INT,RAND() *  1252));
+                IF LEN(@thischar) = 0 OR RAND() < 0.8
+                    SET @thischar = ' ';
+                SET @sliverofawesome = @sliverofawesome + @thischar;
+                SET @matrixthisline = @matrixthisline + 1;
+            END
+            PRINT (@sliverofawesome) ;
+            SET @matrixthis = @matrixthis + 1;
+            WAITFOR DELAY '00:00:00.011';
+        END
+        DECLARE @Result_Good NVARCHAR(2);
+        DECLARE @Result_NA NVARCHAR(2);
+        DECLARE @Result_Warning NVARCHAR(2);
+        DECLARE @Result_Bad NVARCHAR(2);
+        DECLARE @Result_ReallyBad NVARCHAR(2);
+        DECLARE @Result_YourServerIsDead NVARCHAR(2);
 
-	DECLARE @c_r AS CHAR(2) ;
-	SET @c_r = CHAR(13) + CHAR(10);
-	PRINT REPLACE(REPLACE(REPLACE(REPLACE(''+@c_r+'	[   ....,,:,,....[[ '+@c_r+'[   ,???????????????????:.[   '+@c_r+'[ .???????????????????????,[  '+@c_r+'s=.  ??????&&&$$??????. .7s '+@c_r+'s~$.. ...&&&&&... ..7Is '+@c_r+'s~&$+....[[.. =7777Is '+@c_r+'s~&&&&$$7I777Iv7777I[[  '+@c_r+'s~&&&&$$Ivv7777Is '+@c_r+'s~&$$... &$.. ..777?..vIs '+@c_r+'s~&$  &$$.  77?..77? .vIs '+@c_r+'s~&$. .&$  $I77=  7? .vIs '+@c_r+'s~&$$,. .$$ .$I777..7? .vIs '+@c_r+'s~&&$+ .$  ~I77. ,7? .vIs '+@c_r+'s~&$..   & ...  :77? ....77Is '+@c_r+'s~&&&&$$I:..vv7I[ '+@c_r+'s~&&&&$$Ivv7777Is '+@c_r+'s.&&&&$$Ivv7777.s '+@c_r+'s .&&&&$Ivv777.['+@c_r+'[ ..7&&&Ivv..[  '+@c_r+'[[........... ..[[ ', '&','$$$'),'v', '77777'),'[', '      '),'s','    ')
-	PRINT REPLACE(REPLACE(REPLACE(REPLACE('.m__._. _.m__. __.__.. _.. _. _. m_..m_.m_. m.m_.m__ '+@c_r+' |_. _|g g| m_g.\/.i / \. | \ g / mi/ m|i_ \ |_ _|i_ \|_. _|'+@c_r+'. g.g_gi_i g\/g./ _ \.i\g \m \ g..g_) g g |_) g i'+@c_r+'. g.i_.|gm.g.g / m \ g\.im) |gm i_ <.g i__/.g.'+@c_r+'. |_i|_g_||m__g_i|_|/_/. \_\|_| \_gm_/.\m_||_| \_\|m||_i. |_i'+@c_r+'........................................... ','i','|.'),'.','  '),'m','___'),'g','| |')
+        SET @Result_Good =  NCHAR(10004);
+        SET @Result_NA = NCHAR(9940);
+        SET @Result_Warning = NCHAR(9888);
+        SET @Result_Bad = NCHAR(10006);
+        SET @Result_ReallyBad = NCHAR(9763);
+        SET @Result_YourServerIsDead = NCHAR(9760);
+
+        DECLARE @c_r AS CHAR(2) ;
+        SET @c_r = CHAR(13) + CHAR(10);
+
+	    PRINT REPLACE(REPLACE(REPLACE(REPLACE(''+@c_r+'	[   ....,,:,,....[[ '+@c_r+'[   ,???????????????????:.[   '+@c_r+'[ .???????????????????????,[  '+@c_r+'s=.  ??????&&&$$??????. .7s '+@c_r+'s~$.. ...&&&&&... ..7Is '+@c_r+'s~&$+....[[.. =7777Is '+@c_r+'s~&&&&$$7I777Iv7777I[[  '+@c_r+'s~&&&&$$Ivv7777Is '+@c_r+'s~&$$... &$.. ..777?..vIs '+@c_r+'s~&$  &$$.  77?..77? .vIs '+@c_r+'s~&$. .&$  $I77=  7? .vIs '+@c_r+'s~&$$,. .$$ .$I777..7? .vIs '+@c_r+'s~&&$+ .$  ~I77. ,7? .vIs '+@c_r+'s~&$..   & ...  :77? ....77Is '+@c_r+'s~&&&&$$I:..vv7I[ '+@c_r+'s~&&&&$$Ivv7777Is '+@c_r+'s.&&&&$$Ivv7777.s '+@c_r+'s .&&&&$Ivv777.['+@c_r+'[ ..7&&&Ivv..[  '+@c_r+'[[........... ..[[ ', '&','$$$'),'v', '77777'),'[', '      '),'s','    ')
+	    PRINT REPLACE(REPLACE(REPLACE(REPLACE('.m__._. _.m__. __.__.. _.. _. _. m_..m_.m_. m.m_.m__ '+@c_r+' |_. _|g g| m_g.\/.i / \. | \ g / mi/ m|i_ \ |_ _|i_ \|_. _|'+@c_r+'. g.g_gi_i g\/g./ _ \.i\g \m \ g..g_) g g |_) g i'+@c_r+'. g.i_.|gm.g.g / m \ g\.im) |gm i_ <.g i__/.g.'+@c_r+'. |_i|_g_||m__g_i|_|/_/. \_\|_| \_gm_/.\m_||_| \_\|m||_i. |_i'+@c_r+'........................................... ','i','|.'),'.','  '),'m','___'),'g','| |')
+    END
+
 	PRINT @License;
 	PRINT 'Let''s do this!';
 	

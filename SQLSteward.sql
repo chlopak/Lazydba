@@ -3454,7 +3454,7 @@ BEGIN
   SELECT c.name, column_id, max_length
   FROM master.sys.columns c
   INNER JOIN master.sys.tables  t ON t.object_id = c.object_id
-  WHERE t.name = ''sqlsteward_output'') currentcolumns ON targetcolumns.name = currentcolumns.name
+  WHERE t.name = ''' + @ExportTableName + ''') currentcolumns ON targetcolumns.name = currentcolumns.name
   WHERE currentcolumns.name IS NULL
 
   DECLARE @MaxcolumnsToAdd INT = 0;

@@ -1006,7 +1006,7 @@ https://support.microsoft.com/api/lifecycle/GetProductsLifecycle?query=%7B"names
 	IF 'Yes please dont do the system databases' IS NOT NULL
 	BEGIN
 		SET @dynamicSQL = @dynamicSQL + ' WHERE database_id > 4 AND state NOT IN (1,2,3,6) AND user_access = 0'
-		+ CASE WHEN CONVERT(INT,LEFT(CONVERT(NVARCHAR(2),SERVERPROPERTY ('productversion')),2)) >= 12 THEN ' AND replica_id IS NULL' ELSE '' END;
+		+ CASE WHEN CONVERT(INT,LEFT(CONVERT(NVARCHAR(2),SERVERPROPERTY ('productversion')),2)) >= 11 THEN ' AND replica_id IS NULL' ELSE '' END;
 	END
 	SET @dynamicSQL = @dynamicSQL + ' OPTION (RECOMPILE)'
 	INSERT INTO @Databases 

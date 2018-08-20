@@ -1637,8 +1637,8 @@ https://support.microsoft.com/api/lifecycle/GetProductsLifecycle?query=%7B"names
 	SELECT objtype
 	, SUM(refcounts)[Total Rfs]
 	, AVG(refcounts) [Avg Refs]
-	, SUM(usecounts) [Total Use]
-	, AVG(usecounts) [Avg Use]
+	, SUM(cast(usecounts as bigint)) [Total Use]
+	, AVG(cast(usecounts as bigint)) [Avg Use]
 	, CONVERT(MONEY,SUM(size_in_bytes*0.000000953613)) [Size MB]
 	, SUM(CASE WHEN usecounts = 1 THEN 1 ELSE 0 END) [1 use count]
 	, SUM(CASE WHEN usecounts = 1 THEN CONVERT(MONEY,size_in_bytes*0.000000953613) ELSE 0 END) [1 use size]

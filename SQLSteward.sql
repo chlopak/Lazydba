@@ -2809,7 +2809,7 @@ BEGIN
 		) conversions
 	  ) rates
 	) intervals
-	) confidence ON confidence.DBName = base.name
+	) confidence ON confidence.DBName COLLATE DATABASE_DEFAULT = base.name COLLATE DATABASE_DEFAULT 
 	LEFT OUTER JOIN sys.databases dbs ON dbs.database_id = base.database_id
 
 	ORDER BY base.name

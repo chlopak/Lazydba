@@ -4,7 +4,7 @@ IF NOT EXISTS (SELECT * FROM sys.objects WHERE type = 'P' AND OBJECT_ID = OBJECT
 GO
 
 /* Sample command
-	EXEC master.[dbo].[sqlsteward] 
+	EXEC  [dbo].[sqlsteward] 
 		@TopQueries = 50
 		, @FTECost  = 60000
 		, @ShowQueryPlan = 1
@@ -760,6 +760,226 @@ https://support.microsoft.com/api/lifecycle/GetProductsLifecycle?query=%7B"names
 		FROM sys.dm_os_sys_info
 	RAISERROR (N'Looked at worker thread usage',0,1) WITH NOWAIT;
 
+	
+			   /*----------------------------------------
+			--Performance counters
+			----------------------------------------*/
+	SELECT @ts =(
+	SELECT cpu_ticks/(cpu_ticks/ms_ticks)
+	FROM sys.dm_os_sys_info 
+	) OPTION (RECOMPILE)
+	
+DECLARE @PerformanceCounterList TABLE(
+	[counter_name] [VARCHAR](500) NOT NULL,
+	[is_captured_ind] [BIT] NOT NULL
+	)
+DECLARE @PerformanceCounter TABLE(
+	[CounterName] [VARCHAR](250) NOT NULL,
+	[CounterValue] [VARCHAR](250) NOT NULL,
+	[DateSampled] [DATETIME] NOT NULL
+	)
+
+
+DECLARE @loops INT;
+SET @loops = 5;
+
+BEGIN TRY
+
+       DECLARE @perfStr VARCHAR(100)
+       DECLARE @instStr VARCHAR(100)
+       SELECT @instStr = @@SERVICENAME
+       IF(@instStr = 'MSSQLSERVER')
+              SET @perfStr = '\SQLServer'
+       ELSE 
+              SET @perfStr = '\MSSQL$' + @instStr
+
+		INSERT INTO @PerformanceCounterList(counter_name,is_captured_ind)
+		VALUES   ('\Memory\Pages/sec',1)
+			, ('\Memory\Pages Input/sec',1)
+			, ('\Memory\Available MBytes',1)
+			, ('\Processor(_Total)\% Processor Time',1)
+			, ('\Processor(_Total)\% Privileged Time',1)
+			, ('\Process(sqlservr)\% Privileged Time',1)
+			, ('\Process(sqlservr)\% Processor Time',1)
+			, ('\Paging File(_Total)\% Usage',1)
+			, ('\Paging File(_Total)\% Usage Peak',1)
+			, ('\PhysicalDisk(_Total)\Avg. Disk sec/Read',1)
+			, ('\PhysicalDisk(_Total)\Avg. Disk sec/Write',1)
+			, ('\PhysicalDisk(_Total)\Disk Reads/sec',1)
+			, ('\PhysicalDisk(_Total)\Disk Writes/sec',1)
+			, ('\System\Processor Queue Length',1)
+			, ('\System\Context Switches/sec',1)
+			, (@perfStr + ':Buffer Manager\Page life expectancy',1)
+			, (@perfStr + ':Buffer Manager\Buffer cache hit ratio',1)
+			, (@perfStr + ':Buffer Manager\Checkpoint Pages/Sec',1)
+			, (@perfStr + ':Buffer Manager\Lazy Writes/Sec',1)
+			, (@perfStr + ':Buffer Manager\Page Reads/Sec',1)
+			, (@perfStr + ':Buffer Manager\Page Writes/Sec',1)
+			, (@perfStr + ':Buffer Manager\Page Lookups/Sec',1)
+			, (@perfStr + ':Buffer Manager\Free List Stalls/sec',1)
+			, (@perfStr + ':Buffer Manager\Readahead pages/sec',1)
+			, (@perfStr + ':Buffer Manager\Database Pages',1)
+			, (@perfStr + ':Buffer Manager\Target Pages',1)
+			, (@perfStr + ':Buffer Manager\Total Pages',1)
+			, (@perfStr + ':Buffer Manager\Stolen Pages',1)
+			, (@perfStr + ':General Statistics\User Connections',1)
+			, (@perfStr + ':General Statistics\Processes blocked',1)
+			, (@perfStr + ':General Statistics\Logins/Sec',1)
+			, (@perfStr + ':General Statistics\Logouts/Sec',1)
+			, (@perfStr + ':Memory Manager\Memory Grants Pending',1)
+			, (@perfStr + ':Memory Manager\Total Server Memory (KB)',1)
+			, (@perfStr + ':Memory Manager\Target Server Memory (KB)',1)
+			, (@perfStr + ':Memory Manager\Granted Workspace Memory (KB)',1)
+			, (@perfStr + ':Memory Manager\Maximum Workspace Memory (KB)',1)
+			, (@perfStr + ':Memory Manager\Memory Grants Outstanding',1)
+			, (@perfStr + ':SQL Statistics\Batch Requests/sec',1)
+			, (@perfStr + ':SQL Statistics\SQL Compilations/sec',1)
+			, (@perfStr + ':SQL Statistics\SQL Re-Compilations/sec',1)
+			, (@perfStr + ':SQL Statistics\Auto-Param Attempts/sec',1)
+			, (@perfStr + ':Locks(_Total)\Lock Waits/sec',1)
+			, (@perfStr + ':Locks(_Total)\Lock Requests/sec',1)
+			, (@perfStr + ':Locks(_Total)\Lock Timeouts/sec',1)
+			, (@perfStr + ':Locks(_Total)\Number of Deadlocks/sec',1)
+			, (@perfStr + ':Locks(_Total)\Lock Wait Time (ms)',1)
+			, (@perfStr + ':Locks(_Total)\Average Wait Time (ms)',1)
+			, (@perfStr + ':Latches\Total Latch Wait Time (ms)',1)
+			, (@perfStr + ':Latches\Latch Waits/sec',1)
+			, (@perfStr + ':Latches\Average Latch Wait Time (ms)',1)
+			, (@perfStr + ':Access Methods\Forwarded Records/Sec',1)
+			, (@perfStr + ':Access Methods\Full Scans/Sec',1)
+			, (@perfStr + ':Access Methods\Page Splits/Sec',1)
+			, (@perfStr + ':Access Methods\Index Searches/Sec',1)
+			, (@perfStr + ':Access Methods\Workfiles Created/Sec',1)
+			, (@perfStr + ':Access Methods\Worktables Created/Sec',1)
+			, (@perfStr + ':Access Methods\Table Lock Escalations/sec',1)
+			, (@perfStr + ':Cursor Manager by Type(_Total)\Active cursors',1)
+			, (@perfStr + ':Transactions\Longest Transaction Running Time',1)
+			, (@perfStr + ':Transactions\Free Space in tempdb (KB)',1)
+			, (@perfStr + ':Transactions\Version Store Size (KB)',1)
+			, ('\LogicalDisk(*)\Avg. Disk Queue Length',1)
+			, ('\LogicalDisk(*)\Avg. Disk sec/Read',1)
+			, ('\LogicalDisk(*)\Avg. Disk sec/Transfer',1)
+			, ('\LogicalDisk(*)\Avg. Disk sec/Write',1)
+			, ('\LogicalDisk(*)\Current Disk Queue Length',1)
+			, ('\Paging File(*)\*',1)
+			, ('\LogicalDisk(_Total)\Disk Reads/sec',1)
+			, ('\LogicalDisk(_Total)\Disk Writes/sec',1)
+			, ('\SQLServer:Databases(_Total)\Log Bytes Flushed/sec',1)
+END TRY
+BEGIN CATCH
+       DECLARE @errMessage varchar(MAX) = ERROR_MESSAGE()
+       PRINT @errMessage
+       
+
+END CATCH
+BEGIN
+DECLARE @syscounters NVARCHAR(4000)
+SET @syscounters=STUFF((SELECT DISTINCT ''',''' +LTRIM([counter_name])
+FROM @PerformanceCounterList
+WHERE [is_captured_ind] = 1 FOR XML PATH('')), 1, 2, '')+'''' 
+
+DECLARE @syscountertable TABLE (id INT IDENTITY(1,1), [output] VARCHAR(500))
+DECLARE @syscountervaluestable TABLE (id INT IDENTITY(1,1), [value] VARCHAR(500))
+DECLARE @cmdpowershell NVARCHAR(4000)
+SET @cmdpowershell = 'C:\WINDOWS\system32\WindowsPowerShell\v1.0\powershell.exe "& get-counter -counter '+ @syscounters +' | Select-Object -ExpandProperty Readings"'
+		DECLARE @LoopCounter TINYINT
+		SET @LoopCounter = 1
+		WHILE @LoopCounter <= @loops
+		BEGIN
+			INSERT @syscountertable
+			EXEC master..xp_cmdshell @cmdpowershell
+			WAITFOR DELAY '00:00:02';
+			SET @LoopCounter = @LoopCounter + 1
+		END
+
+declare @sqlnamedinstance sysname
+declare @networkname sysname
+if (select CHARINDEX('\',@@SERVERNAME)) = 0
+	begin
+	INSERT @PerformanceCounter (CounterName, CounterValue, DateSampled)
+	SELECT  REPLACE(REPLACE(REPLACE(ct.[output],'\\'+@@SERVERNAME+'\',''),' :',''),'sqlserver:','')[CounterName] , CONVERT(varchar(20),ct2.[output]) [CounterValue], GETDATE() [DateSampled]
+	FROM @syscountertable ct
+	LEFT OUTER JOIN (
+	SELECT id - 1 [id], [output]
+	FROM @syscountertable
+	WHERE PATINDEX('%[0-9]%', LEFT([output],1)) > 0  
+	) ct2 ON ct.id = ct2.id
+	WHERE  ct.[output] LIKE '\\%'
+	ORDER BY [CounterName] ASC
+	end
+
+	else
+	begin
+	select @networkname=RTRIM(left(@@SERVERNAME, CHARINDEX('\', @@SERVERNAME) - 1))
+	select @sqlnamedinstance=RIGHT(@@SERVERNAME,CHARINDEX('\',REVERSE(@@SERVERNAME))-1)
+	INSERT @PerformanceCounter (CounterName, CounterValue, DateSampled)
+	SELECT  REPLACE(REPLACE(REPLACE(ct.[output],'\\'+@networkname+'\',''),' :',''),'mssql$'+@sqlnamedinstance+':','')[CounterName] , CONVERT(varchar(20),ct2.[output]) [CounterValue], GETDATE() [DateSampled]
+	FROM @syscountertable ct
+	LEFT OUTER JOIN (
+	SELECT id - 1 [id], [output]
+	FROM @syscountertable
+	WHERE PATINDEX('%[0-9]%', LEFT([output],1)) > 0  
+	) ct2 ON ct.id = ct2.id
+	WHERE  ct.[output] LIKE '\\%'
+	ORDER BY [CounterName] ASC
+	END
+END
+
+/*Generate DTU calculations*/
+INSERT #output_man_script (SectionID, Section,Summary, Details) SELECT 0,'For Azure Calculations','------','------'
+INSERT #output_man_script (SectionID, Section,Summary)
+SELECT 0, 'Number of CPUs exposed to OS' [Measure], CONVERT(VARCHAR(3),@CPUcount) [Value] 
+
+UNION ALL
+SELECT 0, 'Databases(_total)\log bytes flushed/sec (MB)', AVG(CONVERT(MONEY,CounterValue))/1024/1024
+FROM @PerformanceCounter T1
+WHERE T1.CounterName LIKE '%databases(_total)\log bytes flushed/sec'
+
+UNION ALL
+SELECT 0, 'Average IOPS', SUM(CONVERT(MONEY,CounterValue))/@loops
+FROM @PerformanceCounter T1
+WHERE T1.CounterName LIKE '%LogicalDisk(_Total)\Disk Reads/sec'
+OR  T1.CounterName LIKE '%LogicalDisk(_Total)\Disk Writes/sec'
+
+UNION ALL
+SELECT 0, 'Disk Read IOPS', AVG(CONVERT(MONEY,CounterValue))
+FROM @PerformanceCounter T1
+WHERE T1.CounterName LIKE '%LogicalDisk(_Total)\Disk Reads/sec'
+
+UNION ALL
+SELECT 0, 'Disk Write IOPS', AVG(CONVERT(MONEY,CounterValue))
+FROM @PerformanceCounter T1
+WHERE T1.CounterName LIKE '%LogicalDisk(_Total)\Disk Writes/sec'
+
+UNION ALL
+SELECT 0 ,'SQL Avg Usage %. From: ' + CONVERT(VARCHAR, MIN([Event_Time]),120) + ' to: ' + CONVERT(VARCHAR, MAX([Event_Time]),120) , AVG(SQLProcessUtilization)
+FROM 
+	(
+		SELECT SQLProcessUtilization
+		, SystemIdle
+		, DATEADD(ms,-1 *(@ts - [timestamp]), GETDATE())AS [Event_Time]
+		FROM 
+		(
+			SELECT 
+			record.value('(./Record/@id)[1]','int') AS record_id
+			, record.value('(./Record/SchedulerMonitorEvent/SystemHealth/SystemIdle)[1]','int') AS [SystemIdle]
+			, record.value('(./Record/SchedulerMonitorEvent/SystemHealth/ProcessUtilization)[1]','int') AS [SQLProcessUtilization]
+			, [timestamp]
+			FROM 
+			(
+				SELECT
+				[timestamp]
+				, convert(xml, record) AS [record] 
+				FROM sys.dm_os_ring_buffers 
+				WHERE ring_buffer_type = N'RING_BUFFER_SCHEDULER_MONITOR'
+				AND record LIKE'%%'
+			)AS x
+		) as y
+	) T1
+
+	RAISERROR (N'Finished rough IOPS calculation',0,1) WITH NOWAIT;
+
+
 			/*----------------------------------------
 			--Check for any pages marked suspect for corruption
 			----------------------------------------*/
@@ -1005,7 +1225,7 @@ https://support.microsoft.com/api/lifecycle/GetProductsLifecycle?query=%7B"names
 	FROM sys.databases db ';
 	IF 'Yes please dont do the system databases' IS NOT NULL
 	BEGIN
-		SET @dynamicSQL = @dynamicSQL + ' WHERE database_id > 4 AND state NOT IN (1,2,3,6) AND user_access = 0'
+		SET @dynamicSQL = @dynamicSQL + ' WHERE database_id > 4 AND state NOT IN (1,2,3,6) AND user_access = 0 AND State = 0'
 		+ CASE WHEN CONVERT(INT,LEFT(CONVERT(NVARCHAR(2),SERVERPROPERTY ('productversion')),2)) >= 11 THEN ' AND replica_id IS NULL' ELSE '' END;
 	END
 	SET @dynamicSQL = @dynamicSQL + ' OPTION (RECOMPILE)'
@@ -1047,6 +1267,9 @@ https://support.microsoft.com/api/lifecycle/GetProductsLifecycle?query=%7B"names
 
 
 	RAISERROR (N'Server uptime and cache age established',0,1) WITH NOWAIT;
+
+
+
 
 
 
@@ -1114,10 +1337,7 @@ https://support.microsoft.com/api/lifecycle/GetProductsLifecycle?query=%7B"names
 			--Get some CPU history
 			----------------------------------------*/
 
-	SELECT @ts =(
-	SELECT cpu_ticks/(cpu_ticks/ms_ticks)
-	FROM sys.dm_os_sys_info 
-	) OPTION (RECOMPILE)
+	
 
 	INSERT #output_man_script (SectionID, Section,Summary, Details) SELECT 4,'CPU - Average CPU usage of SQL process as % of total CPU usage','Speed; Avg CPU; CPU Idle; Other; From; To; Full Details','------'
 	INSERT #output_man_script (SectionID, Section,Summary, HoursToResolveWithTesting  )

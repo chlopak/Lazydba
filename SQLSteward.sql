@@ -80,7 +80,20 @@ BEGIN
 	--------
 	Do stuff
 */
+    DECLARE @Result_Good NVARCHAR(2);
+    DECLARE @Result_NA NVARCHAR(2);
+    DECLARE @Result_Warning NVARCHAR(2);
+    DECLARE @Result_Bad NVARCHAR(2);
+    DECLARE @Result_ReallyBad NVARCHAR(2);
+    DECLARE @Result_YourServerIsDead NVARCHAR(2);
 
+    SET @Result_Good =  NCHAR(10004);
+    SET @Result_NA = NCHAR(9940);
+    SET @Result_Warning = NCHAR(9888);
+    SET @Result_Bad = NCHAR(10006);
+    SET @Result_ReallyBad = NCHAR(9763);
+    SET @Result_YourServerIsDead = NCHAR(9760);
+	
     IF (@PrintMatrixHeader <> 0)
     BEGIN
         DECLARE @matrixthis BIGINT ;
@@ -107,19 +120,7 @@ BEGIN
             SET @matrixthis = @matrixthis + 1;
             WAITFOR DELAY '00:00:00.011';
         END
-        DECLARE @Result_Good NVARCHAR(2);
-        DECLARE @Result_NA NVARCHAR(2);
-        DECLARE @Result_Warning NVARCHAR(2);
-        DECLARE @Result_Bad NVARCHAR(2);
-        DECLARE @Result_ReallyBad NVARCHAR(2);
-        DECLARE @Result_YourServerIsDead NVARCHAR(2);
 
-        SET @Result_Good =  NCHAR(10004);
-        SET @Result_NA = NCHAR(9940);
-        SET @Result_Warning = NCHAR(9888);
-        SET @Result_Bad = NCHAR(10006);
-        SET @Result_ReallyBad = NCHAR(9763);
-        SET @Result_YourServerIsDead = NCHAR(9760);
 
         DECLARE @c_r AS CHAR(2) ;
         SET @c_r = CHAR(13) + CHAR(10);

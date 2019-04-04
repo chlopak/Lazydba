@@ -91,6 +91,9 @@ BEGIN
 	EXEC xp_cmdshell @pstext
 END
 
+EXEC dbo.sp_BlitzWho 
+	@ShowSleepingSPIDs =1,
+	@ExpertMode = 1
 
 	EXEC master.[dbo].[sqlsteward] 
 		@TopQueries = 50

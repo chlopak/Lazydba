@@ -14,6 +14,7 @@ GO
 		, @ExportDBName = 'master'
 		, @ExportTableName = 'sqlsteward_output'
 		, @ExportCleanupDays  = 180
+		, @ShowMigrationRelatedOutputs = 1
 */
 
 ALTER PROCEDURE [dbo].[sqlsteward] 
@@ -1226,12 +1227,15 @@ FROM
 	FROM sys.databases db ';
 	IF 'Yes please dont do the system databases' IS NOT NULL
 	BEGIN
-		SET @dynamicSQL = @dynamicSQL + ' WHERE database_id > 4 AND state NOT IN (1,2,3,6) AND user_access = 0 AND State = 0'
-		+ CASE WHEN CONVERT(INT,LEFT(CONVERT(NVARCHAR(2),SERVERPROPERTY ('productversion')),2)) >= 11 THEN ' AND replica_id IS NULL' ELSE '' END;
+		SET @dynamicSQL = @dynamicSQL + CASE WHEN CONVERT(INT,LEFT(CONVERT(NVARCHAR(2),SERVERPROPERTY ('productversion')),2)) >= 11 THEN ' LEFT OUTER JOIN sys.dm_hadr_availability_replica_states ars ON ars.replica_id = db.replica_id' ELSE '' END
+		+ ' WHERE database_id > 4 AND state NOT IN (1,2,3,6) AND user_access = 0 AND State = 0'
+		;
 	END
 	SET @dynamicSQL = @dynamicSQL + ' OPTION (RECOMPILE)'
 	INSERT INTO @Databases 
+	
 
+	 
 	EXEC sp_executesql @dynamicSQL ;
 	SET @Databasei_Max = (SELECT MAX(id) FROM @Databases );
 

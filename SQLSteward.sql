@@ -1,4 +1,4 @@
-PRINT 'SQL server evaluation script @ 16 August 2018 adrian.sullivan@lexel.co.nz ' + NCHAR(65021)
+PRINT 'SQL server evaluation script @ 24 May 2019 adrian.sullivan@lexel.co.nz ' + NCHAR(65021)
 IF NOT EXISTS (SELECT * FROM sys.objects WHERE type = 'P' AND OBJECT_ID = OBJECT_ID('dbo.sqlsteward'))
    exec('CREATE PROCEDURE [dbo].[sqlsteward] AS BEGIN SET NOCOUNT ON; END')
 GO
@@ -283,7 +283,7 @@ BEGIN
 				, ModificationCount BIGINT
 				, LastUpdated DATETIME
 				, [Rows] BIGINT
-				, [Mod%] MONEY
+				, [ModPerc] MONEY
 			);
 	IF OBJECT_ID('tempdb..#MissingIndex') IS NOT NULL
 				DROP TABLE #MissingIndex;
@@ -1224,14 +1224,40 @@ FROM
 	, db.recovery_model
 	, db.recovery_model_desc
 	, db.create_date
-	FROM sys.databases db ';
-	IF 'Yes please dont do the system databases' IS NOT NULL
-	BEGIN
-		SET @dynamicSQL = @dynamicSQL + CASE WHEN CONVERT(INT,LEFT(CONVERT(NVARCHAR(2),SERVERPROPERTY ('productversion')),2)) >= 11 THEN ' LEFT OUTER JOIN sys.dm_hadr_availability_replica_states ars ON ars.replica_id = db.replica_id' ELSE '' END
-		+ ' WHERE database_id > 4 AND state NOT IN (1,2,3,6) AND user_access = 0 AND State = 0'
-		;
-	END
-	SET @dynamicSQL = @dynamicSQL + ' OPTION (RECOMPILE)'
+	FROM 
+	sys.databases db '
+
+	IF (SELECT OBJECT_ID('master.sys.availability_groups')) IS NOT NULL /*You have active AGs*/
+	SET @dynamicSQL = @dynamicSQL + '
+	LEFT OUTER JOIN(
+	SELECT top 100 percent
+	AG.name AS [AvailabilityGroupName],
+	ISNULL(agstates.primary_replica, NULL) AS [PrimaryReplicaServerName],
+	ISNULL(arstates.role, 3) AS [LocalReplicaRole],
+	dbcs.database_name AS [DatabaseName],
+	ISNULL(dbrs.synchronization_state, 0) AS [SynchronizationState],
+	ISNULL(dbrs.is_suspended, 0) AS [IsSuspended],
+	ISNULL(dbcs.is_database_joined, 0) AS [IsJoined]
+	FROM master.sys.availability_groups AS AG
+	LEFT OUTER JOIN master.sys.dm_hadr_availability_group_states as agstates
+	   ON AG.group_id = agstates.group_id
+	INNER JOIN master.sys.availability_replicas AS AR
+	   ON AG.group_id = AR.group_id
+	INNER JOIN master.sys.dm_hadr_availability_replica_states AS arstates
+	   ON AR.replica_id = arstates.replica_id AND arstates.is_local = 1
+	INNER JOIN master.sys.dm_hadr_database_replica_cluster_states AS dbcs
+	   ON arstates.replica_id = dbcs.replica_id
+	LEFT OUTER JOIN master.sys.dm_hadr_database_replica_states AS dbrs
+	   ON dbcs.replica_id = dbrs.replica_id AND dbcs.group_database_id = dbrs.group_database_id
+	WHERE agstates.primary_replica = @@SERVERNAME OR agstates.primary_replica IS NULL
+	ORDER BY AG.name ASC, dbcs.database_name
+	) t1 on t1.DatabaseName = db.name'
+
+	SET @dynamicSQL = @dynamicSQL + '
+	WHERE db.database_id > 4 AND db.user_access = 0 AND db.State = 0 '
+
+
+	SET @dynamicSQL = @dynamicSQL + ' OPTION (RECOMPILE);'
 	INSERT INTO @Databases 
 	
 
@@ -2418,7 +2444,7 @@ SELECT 14,  REPLICATE('|',CONVERT(MONEY,T2.[TotalIO])/ SUM(T2.[TotalIO]) OVER()*
 				, ModificationCount
 				, [LastUpdated] 
 				, Rows
-				, CONVERT(MONEY,ModificationCount)*100/Rows [Mod%]
+				, CONVERT(MONEY,ModificationCount)*100/Rows [ModPerc]
 			FROM (
 				SELECT 
 					OBJECT_NAME(p.object_id) ObjectNm
@@ -2426,7 +2452,7 @@ SELECT 14,  REPLICATE('|',CONVERT(MONEY,T2.[TotalIO])/ SUM(T2.[TotalIO]) OVER()*
 						, s.name StatsName
 						, MAX(p.rows) Rows
 						, sce.name SchemaName
-						, sum(pc.modified_count) ModificationCount
+						, sum(ddsp.modification_counter) ModificationCount
 						, MAX(
 								STATS_DATE(s.object_id, s.stats_id)
 							 ) AS [LastUpdated]
@@ -2436,8 +2462,8 @@ SELECT 14,  REPLICATE('|',CONVERT(MONEY,T2.[TotalIO])/ SUM(T2.[TotalIO]) OVER()*
 				INNER JOIN sys.stats_columns sc ON sc.object_id = s.object_id AND sc.stats_id = s.stats_id AND sc.stats_column_id = pc.partition_column_id
 				INNER JOIN sys.tables t ON t.object_id = s.object_id
 				INNER JOIN sys.schemas sce ON sce.schema_id = t.schema_id
-				WHERE p.rows > 500
-				AND pc.modified_count > 0
+				OUTER APPLY sys.dm_db_stats_properties(s.object_id, s.stats_id) ddsp
+				WHERE ddsp.modification_counter > 0
 				GROUP BY p.object_id, p.index_id, s.name,sce.name
 			) stats
 			WHERE ObjectNm NOT LIKE ''sys%'' AND ModificationCount != 0
@@ -2660,16 +2686,16 @@ SELECT 14,  REPLICATE('|',CONVERT(MONEY,T2.[TotalIO])/ SUM(T2.[TotalIO]) OVER()*
 	END
 		IF EXISTS (SELECT 1 FROM #Action_Statistics ) 
 	BEGIN
-		INSERT #output_man_script (SectionID, Section,Summary, Details) SELECT 21,'STALE STATS - Worst news','------','------'
-		INSERT #output_man_script (SectionID, Section,Summary ,Severity, Details,HoursToResolveWithTesting )
+		INSERT #output_man_script (SectionID, Section,Summary, Details) SELECT 21, 'STALE STATS - Consider updating these','------','------'
+		INSERT #output_man_script (SectionID, Section,Summary, Severity,Details,HoursToResolveWithTesting )
 			SELECT  21,
 			REPLICATE('|',DATEDIFF(DAY,s.LastUpdated,GETDATE())) + CONVERT(VARCHAR(20),DATEDIFF(DAY,s.LastUpdated,GETDATE())) +' days old'
-			, '%Change:' + CONVERT(VARCHAR(15),[Mod%]) +'%; Rows:' + CONVERT(VARCHAR(15),Rows) + ';Modifications:' + CONVERT(VARCHAR(20),s.ModificationCount) +'; ['+ DBname + '].['+SchemaName+'].['+TableName+']:['+StatisticsName+']'
+			, '%Change:' + CONVERT(VARCHAR(15),s.[ModPerc]) +'%; Rows:' + CONVERT(VARCHAR(15),Rows) + ';Modifications:' + CONVERT(VARCHAR(20),s.ModificationCount) +'; ['+ DBname + '].['+SchemaName+'].['+TableName+']:['+StatisticsName+']'
 			, CASE WHEN DATEDIFF(DAY,s.LastUpdated,GETDATE()) < 14 THEN @Result_Warning ELSE @Result_Bad END
 			, 'UPDATE STATISTICS [' + DBname + '].['+SchemaName+'].['+TableName+'] ['+StatisticsName+'] WITH FULLSCAN; PRINT ''[' + DBname + '].['+SchemaName+'].['+TableName+'] ['+StatisticsName+'] Done ''' [UpdateStats]
 			, 0.15
 			 FROM #Action_Statistics s 
-			 ORDER BY [Mod%] DESC OPTION (RECOMPILE);/*They are like little time capsules.. just sitting there.. waiting*/
+			 ORDER BY s.[ModPerc] DESC OPTION (RECOMPILE);/*They are like little time capsules.. just sitting there.. waiting*/
 
 	END
 	RAISERROR (N'Listed state stats',0,1) WITH NOWAIT;
@@ -3772,13 +3798,13 @@ END
 
 
 
-	IF OBJECT_ID('tempdb.#output_man_script') IS NOT NULL
+	IF OBJECT_ID('tempdb..#output_man_script') IS NOT NULL
 		DROP TABLE #output_man_script  
-	IF OBJECT_ID('tempdb.#Action_Statistics') IS NOT NULL
+	IF OBJECT_ID('tempdb..#Action_Statistics') IS NOT NULL
 		DROP TABLE #Action_Statistics
-	IF OBJECT_ID('tempdb.#db_sps') IS NOT NULL
+	IF OBJECT_ID('tempdb..#db_sps') IS NOT NULL
 		DROP TABLE #db_sps
-	IF OBJECT_ID('tempdb.#ConfigurationDefaults') IS NOT NULL
+	IF OBJECT_ID('tempdb..#ConfigurationDefaults') IS NOT NULL
 		DROP TABLE #ConfigurationDefaults
 	IF OBJECT_ID('tempdb..#querystats') IS NOT NULL
 		DROP TABLE #querystats
@@ -3856,5 +3882,36 @@ END
 
 	 */
     SET NOCOUNT OFF;
+	
+	--COMING SOON
+	/*
+	https://blog.pythian.com/list-of-sql-server-databases-in-an-availability-group/
+	Michelle, https://blog.pythian.com/author/gutzait/
+SELECT dbs.name DBName , t1.* FROM sys.databases dbs
+LEFT OUTER JOIN(
+SELECT top 100 percent
+AG.name AS [AvailabilityGroupName],
+ISNULL(agstates.primary_replica, '') AS [PrimaryReplicaServerName],
+ISNULL(arstates.role, 3) AS [LocalReplicaRole],
+dbcs.database_name AS [DatabaseName],
+ISNULL(dbrs.synchronization_state, 0) AS [SynchronizationState],
+ISNULL(dbrs.is_suspended, 0) AS [IsSuspended],
+ISNULL(dbcs.is_database_joined, 0) AS [IsJoined]
 
+FROM master.sys.availability_groups AS AG
+LEFT OUTER JOIN master.sys.dm_hadr_availability_group_states as agstates
+   ON AG.group_id = agstates.group_id
+INNER JOIN master.sys.availability_replicas AS AR
+   ON AG.group_id = AR.group_id
+INNER JOIN master.sys.dm_hadr_availability_replica_states AS arstates
+   ON AR.replica_id = arstates.replica_id AND arstates.is_local = 1
+INNER JOIN master.sys.dm_hadr_database_replica_cluster_states AS dbcs
+   ON arstates.replica_id = dbcs.replica_id
+LEFT OUTER JOIN master.sys.dm_hadr_database_replica_states AS dbrs
+   ON dbcs.replica_id = dbrs.replica_id AND dbcs.group_database_id = dbrs.group_database_id
+ORDER BY AG.name ASC, dbcs.database_name
+) t1 on t1.DatabaseName = dbs.name
+ORDER BY t1.AvailabilityGroupName, dbs.name
+*/
 END
+

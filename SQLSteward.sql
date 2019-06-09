@@ -608,15 +608,6 @@ https://support.microsoft.com/api/lifecycle/GetProductsLifecycle?query=%7B"names
 	SELECT @CurrentBuild = [Character_Value] FROM @msversion 
 	WHERE [Name] = 'ProductVersion' 
 
-	/*Generate PowerShell to download your file*/
-	EXEC sp_configure 'show advanced options', 1
-	RECONFIGURE
-	-- enable xp_cmdshell
-	EXEC sp_configure 'xp_cmdshell', 1
-	RECONFIGURE
-	-- hide advanced options
-	EXEC sp_configure 'show advanced options', 0
-	RAISERROR (N'Running PowerShell to download support information from Brent Ozar',0,1) WITH NOWAIT;
 	DECLARE @pstext NVARCHAR(4000)
 
 	

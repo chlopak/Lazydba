@@ -608,6 +608,8 @@ https://support.microsoft.com/api/lifecycle/GetProductsLifecycle?query=%7B"names
 	SELECT @CurrentBuild = [Character_Value] FROM @msversion 
 	WHERE [Name] = 'ProductVersion' 
 
+
+
 	DECLARE @pstext NVARCHAR(4000)
 
 	
@@ -1246,7 +1248,9 @@ FROM
 
 	SET @dynamicSQL = @dynamicSQL + '
 	WHERE db.database_id > 4 AND db.user_access = 0 AND db.State = 0 '
-
+	
+	IF (SELECT OBJECT_ID('master.sys.availability_groups')) IS NOT NULL /*You have active AGs*/
+	SET @dynamicSQL = @dynamicSQL + ' AND t1.LocalReplicaRole IS NOT NULL'
 
 	SET @dynamicSQL = @dynamicSQL + ' OPTION (RECOMPILE);'
 	INSERT INTO @Databases 
@@ -1325,7 +1329,7 @@ FROM
 	, 'Sockets:' +  ISNULL(replace(replace(replace(replace(CONVERT(NVARCHAR,CONVERT(VARCHAR(20),(@CPUsocketcount ) )), CHAR(9), ' '),CHAR(10),' '), CHAR(13), ' '), '  ',' '),'')
 	+'; Virtual CPUs:' +  ISNULL(replace(replace(replace(replace(CONVERT(NVARCHAR,CONVERT(VARCHAR(20),@CPUcount   )), CHAR(9), ' '),CHAR(10),' '), CHAR(13), ' '), '  ',' ') ,'')
 	+'; VM Type:' +  ISNULL(replace(replace(replace(replace(CONVERT(NVARCHAR,ISNULL(@VMType,'')), CHAR(9), ' '),CHAR(10),' '), CHAR(13), ' '), '  ',' ') ,'')
-	+'; CPU Affinity:'+  ISNULL(replace(replace(replace(replace(CONVERT(NVARCHAR,ISNULL([affinity_type_desc],'')), CHAR(9), ' '),CHAR(10),' '), CHAR(13), ' '), '  ',' ') ,'')
+	+'; CPU Affinity:'+  ISNULL(replace(replace(replace(replace(CONVERT(NVARCHAR,ISNULL('','')), CHAR(9), ' '),CHAR(10),' '), CHAR(13), ' '), '  ',' ') ,'')
 	+'; MemoryGB:' + ISNULL(CONVERT(VARCHAR(20), CONVERT(MONEY,CONVERT(FLOAT,@totalMemoryGB))),'')
 	+'; SQL Allocated:' +ISNULL(CONVERT(VARCHAR(20), CONVERT(MONEY,CONVERT(FLOAT,@UsedMemory))) ,'')
 	+'; Suggested MAX:' + ISNULL( CONVERT(VARCHAR(20), CASE 
@@ -2442,8 +2446,11 @@ SELECT 14,  REPLICATE('|',CONVERT(MONEY,T2.[TotalIO])/ SUM(T2.[TotalIO]) OVER()*
 						, p.index_id StatsID
 						, s.name StatsName
 						, MAX(p.rows) Rows
-						, sce.name SchemaName
-						, sum(ddsp.modification_counter) ModificationCount
+						, sce.name SchemaName' +
+						CASE WHEN OBJECT_ID(N'sys.dm_db_stats_properties') IS NOT NULL 
+				THEN ', sum(ddsp.modification_counter) ' 
+				ELSE ', sum(pc.modified_count) ' END
+						+' ModificationCount
 						, MAX(
 								STATS_DATE(s.object_id, s.stats_id)
 							 ) AS [LastUpdated]
@@ -2452,10 +2459,11 @@ SELECT 14,  REPLICATE('|',CONVERT(MONEY,T2.[TotalIO])/ SUM(T2.[TotalIO]) OVER()*
 				INNER JOIN sys.stats s ON s.object_id = p.object_id AND s.stats_id = p.index_id
 				INNER JOIN sys.stats_columns sc ON sc.object_id = s.object_id AND sc.stats_id = s.stats_id AND sc.stats_column_id = pc.partition_column_id
 				INNER JOIN sys.tables t ON t.object_id = s.object_id
-				INNER JOIN sys.schemas sce ON sce.schema_id = t.schema_id
-				OUTER APPLY sys.dm_db_stats_properties(s.object_id, s.stats_id) ddsp
-				WHERE ddsp.modification_counter > 0
-				GROUP BY p.object_id, p.index_id, s.name,sce.name
+				INNER JOIN sys.schemas sce ON sce.schema_id = t.schema_id' + 
+				CASE WHEN OBJECT_ID(N'sys.dm_db_stats_properties') IS NOT NULL 
+				THEN ' OUTER APPLY sys.dm_db_stats_properties(s.object_id, s.stats_id) ddsp WHERE ddsp.modification_counter > 0 GROUP BY p.object_id, p.index_id, s.name,sce.name' 
+				ELSE ' GROUP BY p.object_id, p.index_id, s.name,sce.name HAVING sum(pc.modified_count)> 0 ' END
+				+'
 			) stats
 			WHERE ObjectNm NOT LIKE ''sys%'' AND ModificationCount != 0
 			AND ObjectNm NOT LIKE ''ifts_comp_fragment%''

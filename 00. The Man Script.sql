@@ -59,7 +59,7 @@ END
 		@ShowSleepingSPIDs =1,
 		@ExpertMode = 1
 
-	EXEC master.[dbo].[sqlsteward] 
+	EXEC  [dbo].[sqlsteward] 
 		@TopQueries = 50
 		, @FTECost  = 60000
 		, @ShowQueryPlan = 1
@@ -69,6 +69,7 @@ END
 		, @ExportDBName = 'master'
 		, @ExportTableName = 'sqlsteward_output'
 		, @ExportCleanupDays  = 180
+		, @ShowMigrationRelatedOutputs = 1
 
 	EXEC [dbo].[sp_Blitz] 
 		@CheckUserDatabaseObjects = 1 
@@ -92,6 +93,12 @@ BEGIN
 
 	EXEC [dbo].[sp_BlitzIndex] @Mode = 4, @SkipStatistics = 0, @GetAllDatabases = 1, @OutputServerName = 1, @OutputDatabaseName = 1;
 END
+
+Install-Module -Name dbatools
+Install-Module Pester -SkipPublisherCheck -Force
+Import-Module Pester -Force
+Install-Module -Name dbachecks
+Invoke-DbcCheck -Check Agent, Database, Domain, HADR, Instance,LogShipping, MaintenanceSolution, Server -SqlInstance localhost
 
 
 
